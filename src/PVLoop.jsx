@@ -1,6 +1,4 @@
-import React from "react";
-import { useState, useMemo, useCallback } from "react";
-
+import React, { useState, useMemo, useCallback } from "react";
 // ═══════════════════════════════════════════════════════════════════
 // PRESSURE–VOLUME LOOP SIMULATOR v4
 // CVPhysiology cf025 (independent effects) + cf026 (interdependent)
