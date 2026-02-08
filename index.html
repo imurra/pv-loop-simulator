@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<!-- saved from url=(0142)file:///C:/Users/12156/OneDrive%20-%20Art%20and%20Wellness%20Enterprises,%20LLC/Documents/Murray/AWSOM/Cardiovasc/Pre%20materials/pv_loop.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pressure-Volume Loop Simulator</title>
+  <script crossorigin="" src="./index_files/react.production.min.js.download"></script>
+  <script crossorigin="" src="./index_files/react-dom.production.min.js.download"></script>
+  <script src="./index_files/babel.min.js.download"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+  </style>
+<script>"use strict";
+
+function _typeof(o) { "@babel/helpers - typeof"; return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) { return typeof o; } : function (o) { return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o; }, _typeof(o); }
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _defineProperty(e, r, t) { return (r = _toPropertyKey(r)) in e ? Object.defineProperty(e, r, { value: t, enumerable: !0, configurable: !0, writable: !0 }) : e[r] = t, e; }
+function _toPropertyKey(t) { var i = _toPrimitive(t, "string"); return "symbol" == _typeof(i) ? i : i + ""; }
+function _toPrimitive(t, r) { if ("object" != _typeof(t) || !t) return t; var e = t[Symbol.toPrimitive]; if (void 0 !== e) { var i = e.call(t, r || "default"); if ("object" != _typeof(i)) return i; throw new TypeError("@@toPrimitive must return a primitive value."); } return ("string" === r ? String : Number)(t); }
+function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t["return"] && (u = t["return"](), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+var _React = React,
+  useState = _React.useState,
+  useMemo = _React.useMemo,
+  useCallback = _React.useCallback;
+
+// ═══════════════════════════════════════════════════════════════════
+// PRESSURE–VOLUME LOOP SIMULATOR v4
+// CVPhysiology cf025 (independent effects) + cf026 (interdependent)
+//
+// ESPVR: P = Ees × (V − V0)         contractility boundary
+// EDPVR: P = A × (e^(α×V) − 1)     passive compliance
+// Ea:    ESP = Ea × (EDV − ESV)      arterial elastance
+// ESV  = (Ea×EDV + Ees×V0)/(Ees+Ea)
+//
+// INDEPENDENT EFFECTS (cf025 — what the sliders model):
+//   ↑Preload (EDV):  EDV↑, ESV unchanged, SV↑  (slides along ESPVR)
+//   ↑Inotropy (Ees): ESPVR steepens, ESV↓, EDV unchanged, SV↑ (wider)
+//   ↑Afterload (Ea): ESP↑, ESV↑, EDV unchanged, SV↓ (taller/narrower)
+//   ↑Stiffness (α):  EDPVR shifts up, EDV↓ at same filling pressure (horizontal shift)
+//
+// BUG FIXES in v4.1:
+//   - Slider transition snapshots scenario params (no afterload leak)
+//   - Compliance slider shifts EDV horizontally via filling-pressure equivalence
+//   - Each slider is truly independent (cf025)
+// ═══════════════════════════════════════════════════════════════════
+
+var V0 = 10,
+  A_ED = 0.5,
+  REF_ALPHA = 0.02;
+function getEffectiveEDV(sliderEDV, alpha) {
+  if (Math.abs(alpha - REF_ALPHA) < 0.001) return sliderEDV;
+  var refLVEDP = A_ED * (Math.exp(REF_ALPHA * sliderEDV) - 1);
+  if (alpha <= 0.001) return Math.min(sliderEDV * 1.3, 200);
+  var edv = Math.log(refLVEDP / A_ED + 1) / alpha;
+  return Math.max(50, Math.min(edv, 200));
+}
+function computeState(Ees, EDV, Ea, alpha) {
+  var ESV = (Ea * EDV + Ees * V0) / (Ees + Ea);
+  var ESP = Ees * (ESV - V0);
+  var SV = EDV - ESV;
+  var EF = SV / EDV * 100;
+  var LVEDP = A_ED * (Math.exp(alpha * EDV) - 1);
+  var esvP0 = A_ED * (Math.exp(alpha * ESV) - 1);
+  return {
+    EDV: EDV,
+    ESV: ESV,
+    ESP: ESP,
+    SV: SV,
+    EF: EF,
+    LVEDP: LVEDP,
+    esvP0: esvP0
+  };
+}
+function computePinned(Ees, sliderEDV, alpha, refESP, refLVEDP) {
+  var EDV = Math.max(50, Math.min(Math.log(refLVEDP / A_ED + 1) / alpha, sliderEDV));
+  var ESV = Math.min(refESP / Ees + V0, EDV - 1);
+  var ESP = refESP;
+  var SV = EDV - ESV;
+  var EF = SV / EDV * 100;
+  var LVEDP = A_ED * (Math.exp(alpha * EDV) - 1);
+  var esvP0 = A_ED * (Math.exp(alpha * ESV) - 1);
+  return {
+    EDV: EDV,
+    ESV: ESV,
+    ESP: ESP,
+    SV: SV,
+    EF: EF,
+    LVEDP: LVEDP,
+    esvP0: esvP0
+  };
+}
+function edpvr(V, alpha) {
+  return A_ED * (Math.exp(alpha * V) - 1);
+}
+function espvr(V, Ees) {
+  return Ees * (V - V0);
+}
+var SC = {
+  normal: {
+    label: "Normal",
+    Ees: 2.5,
+    EDV: 120,
+    Ea: 2.0,
+    alpha: 0.02,
+    color: "#58A6FF",
+    highlight: null,
+    steps: [{
+      title: "Baseline",
+      text: "A healthy left ventricle. Two boundary curves control the loop: ESPVR (contractility ceiling) and EDPVR (passive compliance floor). The loop shape emerges from these constraints."
+    }, {
+      title: "Filling (phase a)",
+      text: "Mitral valve opens → blood flows from left atrium into the ventricle along the EDPVR. Volume rises gently because the normal wall is compliant — filling is easy and pressure stays low."
+    }, {
+      title: "Systole (b → c → d)",
+      text: "Phase b: all valves closed, pressure builds. Phase c: aortic valve opens, blood is ejected. The top-left corner sits on the ESPVR — the maximum the ventricle can squeeze at that volume. Phase d: pressure falls back down."
+    }, {
+      title: "Sliding vs. rotating",
+      text: "Preload changes SLIDE the loop along a fixed ESPVR. Contractility changes ROTATE the ESPVR itself. Both can increase Stroke Volume (SV), but through fundamentally different mechanisms. Try the sliders to see this."
+    }]
+  },
+  hfref: {
+    label: "HFrEF",
+    Ees: 1.0,
+    EDV: 180,
+    Ea: 2.2,
+    alpha: 0.02,
+    color: "#F85149",
+    highlight: "topleft",
+    steps: [{
+      title: "The heart muscle weakens",
+      text: "In dilated cardiomyopathy or after a large MI, the ventricle loses contractile force. The ESPVR flattens — the ceiling drops. The ventricle simply cannot squeeze as hard."
+    }, {
+      title: "Can't empty → volume backs up",
+      text: "Because the ventricle can't empty properly, blood accumulates. The body retains fluid (RAAS activation), pushing the loop rightward. The ventricle dilates."
+    }, {
+      title: "Filling pressures rise → congestion",
+      text: "More volume in the ventricle means higher diastolic pressure (LVEDP rises). This backs up into the lungs → pulmonary congestion → dyspnea. The Starling mechanism partially compensates Stroke Volume (SV), but at the cost of congestion."
+    }, {
+      title: "Ejection Fraction (EF) drops",
+      text: "EF falls to ~30%. The loop is wide but flat — lots of volume, poor emptying. Treatment targets: reduce preload (diuretics), reduce afterload (ACE inhibitors), and if possible support contractility."
+    }]
+  },
+  hfpef: {
+    label: "HFpEF",
+    Ees: 3.0,
+    EDV: 105,
+    Ea: 2.2,
+    alpha: 0.035,
+    color: "#F0883E",
+    highlight: "bottomright",
+    steps: [{
+      title: "The wall stiffens",
+      text: "In hypertensive heart disease, aging, or amyloid, the ventricular wall becomes stiff. Think of inflating a stiff balloon — it takes much more pressure to fill the same volume. The EDPVR curve shifts upward."
+    }, {
+      title: "Filling pressure rises despite less volume",
+      text: "Even though the ventricle fills to a SMALLER volume, diastolic pressure (LVEDP) is much higher. The bottom of the loop rises. This is the opposite of HFrEF — the ventricle is small and stiff, not big and floppy."
+    }, {
+      title: "Same symptoms, different mechanism",
+      text: "High LVEDP backs up into the lungs → pulmonary congestion → dyspnea. The patient looks identical to HFrEF clinically — but the cause is impaired filling, not impaired contraction."
+    }, {
+      title: "The diagnostic trap",
+      text: "Ejection Fraction (EF) is preserved (>50%) — the ventricle empties fine, it just can't fill. Echo shows 'normal EF' but diastolic dysfunction (elevated E/e'). This is why HFpEF was historically missed."
+    }]
+  },
+  as: {
+    label: "Aortic Stenosis",
+    Ees: 3.0,
+    EDV: 130,
+    Ea: 3.5,
+    alpha: 0.02,
+    color: "#A371F7",
+    highlight: "topright",
+    steps: [{
+      title: "Fixed obstruction to outflow",
+      text: "A stenotic aortic valve creates a barrier to ejection. The ventricle must generate much higher pressure (afterload/ESP) to push blood through the narrowed opening. The loop grows taller."
+    }, {
+      title: "Pressure overload → hypertrophy",
+      text: "The ventricle compensates by thickening its walls (concentric hypertrophy) to generate the higher pressures needed. The loop becomes tall and narrow — high afterload (ESP), reduced Stroke Volume (SV)."
+    }, {
+      title: "High energy cost",
+      text: "A tall, narrow loop means enormous myocardial oxygen demand. The thick wall also has poor subendocardial perfusion → patients develop angina even without coronary artery disease."
+    }, {
+      title: "Decompensation",
+      text: "Initially Stroke Volume (SV) and Ejection Fraction (EF) are maintained through hypertrophy. But eventually the muscle can't keep up → contractility falls → EF drops → rapid clinical deterioration."
+    }]
+  },
+  ar: {
+    label: "Aortic Regurg",
+    Ees: 2.5,
+    EDV: 180,
+    Ea: 1.5,
+    alpha: 0.018,
+    color: "#D2A8FF",
+    highlight: "bottomright",
+    steps: [{
+      title: "Backward leak during diastole",
+      text: "An incompetent aortic valve lets blood leak backward from the aorta into the ventricle during diastole. The LV fills from TWO sources — the left atrium AND the aorta — so it overfills dramatically."
+    }, {
+      title: "Volume overload widens the loop",
+      text: "The ventricle dilates to accommodate the extra volume. The loop shifts right and becomes wide. Total Stroke Volume (SV) is very large, but some of it just leaks backward — forward SV to the body is reduced."
+    }, {
+      title: "Eccentric remodeling",
+      text: "Chronic volume overload causes the ventricle to remodel — it stretches (sarcomeres added in series). The chamber gets bigger but compliance may actually improve initially, keeping filling pressures manageable."
+    }, {
+      title: "Progressive failure",
+      text: "Over time, the chronic dilation increases wall stress → contractility eventually drops → the ESPVR flattens → Ejection Fraction (EF) falls. By the time EF drops, significant irreversible damage has occurred."
+    }]
+  },
+  ms: {
+    label: "Mitral Stenosis",
+    Ees: 2.5,
+    EDV: 90,
+    Ea: 2.0,
+    alpha: 0.02,
+    color: "#79C0FF",
+    highlight: "bottomright",
+    steps: [{
+      title: "Restricted filling",
+      text: "A stenotic mitral valve limits blood flow from the left atrium into the ventricle. The ventricle receives less blood per beat → it underfills. The loop shrinks and shifts left."
+    }, {
+      title: "The ventricle itself is normal",
+      text: "Contractility is fine, compliance is fine — the problem is upstream. The ventricle just doesn't get enough blood to work with. Stroke Volume (SV) drops because there's less to eject."
+    }, {
+      title: "LVEDP is LOW — key point",
+      text: "Unlike most causes of pulmonary congestion, the LV filling pressure is actually low. The ventricle is starved of volume, not overloaded. This distinguishes MS from heart failure on the PV loop."
+    }, {
+      title: "LA pressure drives the congestion",
+      text: "The pathology is in the left atrium — LA pressure must be very high to force blood through the stenotic valve. LA dilates → atrial fibrillation. Pulmonary congestion comes from LA hypertension, not LV dysfunction."
+    }]
+  },
+  mr: {
+    label: "Mitral Regurg",
+    Ees: 2.5,
+    EDV: 160,
+    Ea: 1.2,
+    alpha: 0.02,
+    color: "#3FB950",
+    highlight: "topleft",
+    steps: [{
+      title: "Backward leak during systole",
+      text: "An incompetent mitral valve lets blood regurgitate from the ventricle back into the left atrium during contraction. This creates a low-resistance escape route — the ventricle can empty more easily."
+    }, {
+      title: "Afterload (ESP) drops",
+      text: "Because part of the ejection goes into the low-pressure LA, the effective afterload is reduced. The ventricle doesn't have to generate as much pressure to empty. The top of the loop drops."
+    }, {
+      title: "Volume overload from regurgitant return",
+      text: "The leaked blood returns from the LA next beat, increasing filling volume. The loop shifts right and widens. Total Stroke Volume (SV) is high, but forward SV is reduced."
+    }, {
+      title: "The Ejection Fraction (EF) trap",
+      text: "EF appears supranormal (>60%) because of the low-resistance unloading. But this is misleading — in severe MR, an EF of 60% actually indicates the ventricle is already failing. Guidelines trigger surgery at EF <60%."
+    }]
+  },
+  hemorrhage: {
+    label: "Hemorrhage",
+    Ees: 2.8,
+    EDV: 85,
+    Ea: 2.5,
+    alpha: 0.02,
+    color: "#D29922",
+    highlight: "bottomright",
+    steps: [{
+      title: "Acute blood loss",
+      text: "Blood loss reduces circulating volume → less venous return → the ventricle fills less. The loop slides left and shrinks. This is primarily a preload problem."
+    }, {
+      title: "Sympathetic compensation kicks in",
+      text: "Baroreceptors detect falling pressure → sympathetic activation → heart rate increases, contractility improves slightly, and peripheral vessels constrict to maintain blood pressure."
+    }, {
+      title: "Smaller loop, lower Stroke Volume (SV)",
+      text: "Despite compensation, SV drops significantly. The loop is small and shifted left. The ventricle is working fine — it just doesn't have enough blood to pump."
+    }, {
+      title: "Tachycardia is the early sign",
+      text: "Cardiac output = SV × heart rate. With reduced SV, heart rate must rise to maintain output. Tachycardia appears BEFORE hypotension — by the time blood pressure drops, >30% of blood volume is lost."
+    }]
+  },
+  fluid: {
+    label: "IV Fluid",
+    Ees: 2.5,
+    EDV: 150,
+    Ea: 2.0,
+    alpha: 0.02,
+    color: "#1F6FEB",
+    highlight: "bottomright",
+    steps: [{
+      title: "Volume expansion",
+      text: "IV fluid increases circulating volume → more venous return → the ventricle fills more. The loop slides right along the same ESPVR. Contractility and afterload don't change — this is a pure preload effect."
+    }, {
+      title: "Starling mechanism increases SV",
+      text: "Greater filling stretch → more forceful contraction → Stroke Volume (SV) increases. The loop gets wider. The right side shifts right while the left side barely moves."
+    }, {
+      title: "Preload vs. inotropy distinction",
+      text: "Compare with inotropes: fluid shifts the RIGHT side of the loop (more filling). Inotropes shift the LEFT side (better emptying). Both increase SV, but by moving opposite sides of the loop."
+    }, {
+      title: "Fluid responsiveness has limits",
+      text: "On the steep part of the compliance curve, fluid helps. But past a certain point, more fluid just raises filling pressure without increasing SV → pulmonary edema. This is why passive leg raise and SVV testing matter."
+    }]
+  },
+  inotrope: {
+    label: "Inotrope",
+    Ees: 4.0,
+    EDV: 120,
+    Ea: 2.0,
+    alpha: 0.02,
+    color: "#BC8CFF",
+    highlight: "topleft",
+    steps: [{
+      title: "Contractility increases",
+      text: "Dobutamine (β1 agonist) strengthens contraction. The ESPVR rotates upward — the contractile ceiling rises. The ventricle can now squeeze more completely at any given volume."
+    }, {
+      title: "Better emptying → wider loop",
+      text: "The ventricle empties more completely → the left side of the loop shifts left. Filling volume stays roughly the same. Stroke Volume (SV) increases because the loop gets WIDER, not just shifted."
+    }, {
+      title: "Compare: preload vs. contractility",
+      text: "IV Fluid: right side shifts right (more filling), left side stays → wider. Inotrope: left side shifts left (better emptying), right side stays → wider. Both increase SV by moving OPPOSITE sides of the loop."
+    }, {
+      title: "Clinical tradeoff",
+      text: "Ejection Fraction (EF) improves. But inotropes increase myocardial oxygen demand and arrhythmia risk. They're a bridge — to surgery, recovery, or a ventricular assist device — not a long-term solution."
+    }]
+  }
+};
+var NORM = SC.normal;
+var normSt = computeState(NORM.Ees, NORM.EDV, NORM.Ea, NORM.alpha);
+var W = 540,
+  H = 420;
+var PD = {
+  t: 22,
+  r: 22,
+  b: 52,
+  l: 56
+};
+var GW = W - PD.l - PD.r,
+  GH = H - PD.t - PD.b;
+var VMAX = 220,
+  PMAX = 240;
+function vX(v) {
+  return PD.l + v / VMAX * GW;
+}
+function pY(p) {
+  return PD.t + GH - Math.max(0, Math.min(p, PMAX)) / PMAX * GH;
+}
+function makeLoop(st, Ees, alpha) {
+  var EDV = st.EDV,
+    ESV = st.ESV,
+    ESP = st.ESP,
+    LVEDP = st.LVEDP,
+    esvP0 = st.esvP0;
+  var pts = [];
+  for (var i = 0; i <= 20; i++) {
+    var v = ESV + (EDV - ESV) * (i / 20);
+    var p = edpvr(v, alpha);
+    pts.push([v, Math.min(p, 60)]);
+  }
+  for (var _i = 0; _i <= 12; _i++) {
+    var f = _i / 12;
+    var _p = Math.min(LVEDP, 60) + (ESP - Math.min(LVEDP, 60)) * f;
+    pts.push([EDV, _p]);
+  }
+  for (var _i2 = 0; _i2 <= 20; _i2++) {
+    var _f = _i2 / 20;
+    var _v = EDV - (EDV - ESV) * _f;
+    var straightP = ESP;
+    var peakBow = 8;
+    var bow = peakBow * Math.sin(_f * Math.PI);
+    var espvrAtV = espvr(_v, Ees);
+    var _p2 = Math.min(straightP + bow, espvrAtV + 5);
+    pts.push([_v, Math.max(_p2, ESP - 15)]);
+  }
+  for (var _i3 = 0; _i3 <= 12; _i3++) {
+    var _f2 = _i3 / 12;
+    var _p3 = ESP - (ESP - Math.min(esvP0, 30)) * _f2;
+    pts.push([ESV, _p3]);
+  }
+  return pts.map(function (_ref) {
+    var _ref2 = _slicedToArray(_ref, 2),
+      v = _ref2[0],
+      p = _ref2[1];
+    return "".concat(vX(v).toFixed(1), ",").concat(pY(p).toFixed(1));
+  }).join(" ");
+}
+function makeCurve(type, param) {
+  var pts = [];
+  for (var v = type === "espvr" ? V0 : 0; v <= 210; v += 2) {
+    var p = type === "espvr" ? espvr(v, param) : edpvr(v, param);
+    if (p > PMAX + 10) break;
+    if (type === "edpvr" && p > 65) break;
+    pts.push("".concat(vX(v).toFixed(1), ",").concat(pY(p).toFixed(1)));
+  }
+  return pts.join(" ");
+}
+function D(_ref3) {
+  var val = _ref3.val,
+    reference = _ref3.reference;
+  var d = val - reference;
+  if (Math.abs(d) < 0.5) return null;
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 9,
+      marginLeft: 2,
+      color: d > 0 ? "#F85149" : "#58A6FF",
+      fontWeight: 800
+    }
+  }, d > 0 ? "▲" : "▼");
+}
+function getHL(key, pv) {
+  if (!key) return null;
+  var m = {
+    topleft: {
+      cx: vX(pv.ESV),
+      cy: pY(pv.ESP),
+      label: "End-systolic point"
+    },
+    bottomright: {
+      cx: vX(pv.EDV),
+      cy: pY(Math.min(pv.LVEDP, 50)),
+      label: "Preload (EDV)"
+    },
+    topright: {
+      cx: vX(pv.EDV),
+      cy: pY(pv.ESP),
+      label: "Peak pressure"
+    }
+  };
+  return m[key] || null;
+}
+function PVLoop() {
+  var _useState = useState("normal"),
+    _useState2 = _slicedToArray(_useState, 2),
+    scKey = _useState2[0],
+    setScKey = _useState2[1];
+  var _useState3 = useState(0),
+    _useState4 = _slicedToArray(_useState3, 2),
+    step = _useState4[0],
+    setStep = _useState4[1];
+  var _useState5 = useState({
+      Ees: 2.5,
+      EDV: 120,
+      Ea: 2.0,
+      alpha: 0.02,
+      _eaMoved: false
+    }),
+    _useState6 = _slicedToArray(_useState5, 2),
+    sl = _useState6[0],
+    setSl = _useState6[1];
+  var _useState7 = useState("scenario"),
+    _useState8 = _slicedToArray(_useState7, 2),
+    mode = _useState8[0],
+    setMode = _useState8[1];
+  var sc = SC[scKey];
+  var pv = useMemo(function () {
+    if (mode === "scenario") return computeState(sc.Ees, sc.EDV, sc.Ea, sc.alpha);
+    if (sl._eaMoved) return computeState(sl.Ees, sl.EDV, sl.Ea, sl.alpha);
+    return computePinned(sl.Ees, sl.EDV, sl.alpha, normSt.ESP, normSt.LVEDP);
+  }, [mode, sc, sl]);
+  var pm = mode === "scenario" ? sc : {
+    Ees: sl.Ees,
+    EDV: pv.EDV,
+    Ea: sl.Ea,
+    alpha: sl.alpha
+  };
+  var loop = useMemo(function () {
+    return makeLoop(pv, pm.Ees, pm.alpha);
+  }, [pv, pm.Ees, pm.alpha]);
+  var nLoop = useMemo(function () {
+    return makeLoop(normSt, NORM.Ees, NORM.alpha);
+  }, []);
+  var espL = useMemo(function () {
+    return makeCurve("espvr", pm.Ees);
+  }, [pm.Ees]);
+  var edpL = useMemo(function () {
+    return makeCurve("edpvr", pm.alpha);
+  }, [pm.alpha]);
+  var nEspL = useMemo(function () {
+    return makeCurve("espvr", NORM.Ees);
+  }, []);
+  var nEdpL = useMemo(function () {
+    return makeCurve("edpvr", NORM.alpha);
+  }, []);
+  var col = mode === "scenario" ? sc.color : "#58A6FF";
+  var showRef = mode === "scenario" ? scKey !== "normal" : true;
+  var steps = sc.steps;
+  var nSteps = steps.length;
+  var hl = mode === "scenario" ? getHL(sc.highlight, pv) : null;
+  var pickSc = useCallback(function (k) {
+    setScKey(k);
+    setStep(0);
+    setMode("scenario");
+  }, []);
+  var slide = useCallback(function (k, v) {
+    if (mode === "scenario") {
+      var snap = SC[scKey];
+      setSl(_defineProperty({
+        Ees: snap.Ees,
+        EDV: snap.EDV,
+        Ea: snap.Ea,
+        alpha: snap.alpha,
+        _eaMoved: k === "Ea"
+      }, k, v));
+    } else {
+      setSl(function (prev) {
+        return _objectSpread(_objectSpread({}, prev), {}, _defineProperty({
+          _eaMoved: k === "Ea" ? true : prev._eaMoved
+        }, k, v));
+      });
+    }
+    setMode("manual");
+  }, [mode, scKey]);
+  var vTicks = [0, 50, 100, 150, 200];
+  var pTicks = [0, 50, 100, 150, 200];
+  var dispLVEDP = Math.min(pv.LVEDP, 50);
+  var groups = [{
+    label: "Conditions",
+    keys: ["normal", "hfref", "hfpef"]
+  }, {
+    label: "Valvular",
+    keys: ["as", "ar", "ms", "mr"]
+  }, {
+    label: "Acute",
+    keys: ["hemorrhage", "fluid", "inotrope"]
+  }];
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#0D1117",
+      color: "#C9D1D9",
+      minHeight: "100vh",
+      fontFamily: "'JetBrains Mono','SF Mono','Fira Code',monospace",
+      padding: "8px 8px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: 580,
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontSize: 15,
+      fontWeight: 700,
+      color: "#E6EDF3",
+      margin: 0,
+      letterSpacing: 1.5,
+      textTransform: "uppercase"
+    }
+  }, "Pressure\u2013Volume Loop"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 9,
+      color: "#484F58",
+      marginTop: 2
+    }
+  }, "ESPVR & EDPVR control the boundaries \xB7 The loop is emergent")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 3,
+      marginBottom: 8
+    }
+  }, groups.map(function (g) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: g.label,
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 8,
+        color: "#484F58",
+        width: 62,
+        textAlign: "right",
+        flexShrink: 0,
+        textTransform: "uppercase",
+        letterSpacing: 0.5
+      }
+    }, g.label), g.keys.map(function (k) {
+      var s = SC[k];
+      var on = scKey === k && mode === "scenario";
+      return /*#__PURE__*/React.createElement("button", {
+        key: k,
+        onClick: function onClick() {
+          return pickSc(k);
+        },
+        style: {
+          padding: "3px 9px",
+          fontSize: 10,
+          fontWeight: on ? 700 : 400,
+          background: on ? s.color + "20" : "transparent",
+          color: on ? s.color : "#6E7681",
+          border: "1px solid ".concat(on ? s.color + "55" : "#21262D"),
+          borderRadius: 3,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          transition: "all 0.15s"
+        }
+      }, s.label);
+    }));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#0D1117",
+      border: "1px solid #21262D",
+      borderRadius: 6,
+      padding: 4,
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 ".concat(W, " ").concat(H),
+    style: {
+      width: "100%",
+      height: "auto",
+      display: "block"
+    }
+  }, vTicks.map(function (v) {
+    return /*#__PURE__*/React.createElement("line", {
+      key: "vg".concat(v),
+      x1: vX(v),
+      y1: PD.t,
+      x2: vX(v),
+      y2: PD.t + GH,
+      stroke: "#161B22",
+      strokeWidth: 1
+    });
+  }), pTicks.map(function (p) {
+    return /*#__PURE__*/React.createElement("line", {
+      key: "pg".concat(p),
+      x1: PD.l,
+      y1: pY(p),
+      x2: PD.l + GW,
+      y2: pY(p),
+      stroke: "#161B22",
+      strokeWidth: 1
+    });
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: PD.l,
+    y1: PD.t,
+    x2: PD.l,
+    y2: PD.t + GH,
+    stroke: "#30363D",
+    strokeWidth: 1.5
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: PD.l,
+    y1: PD.t + GH,
+    x2: PD.l + GW,
+    y2: PD.t + GH,
+    stroke: "#30363D",
+    strokeWidth: 1.5
+  }), vTicks.map(function (v) {
+    return /*#__PURE__*/React.createElement("text", {
+      key: "vl".concat(v),
+      x: vX(v),
+      y: PD.t + GH + 16,
+      textAnchor: "middle",
+      fill: "#484F58",
+      fontSize: 10,
+      fontFamily: "inherit"
+    }, v);
+  }), pTicks.map(function (p) {
+    return /*#__PURE__*/React.createElement("text", {
+      key: "pl".concat(p),
+      x: PD.l - 8,
+      y: pY(p) + 4,
+      textAnchor: "end",
+      fill: "#484F58",
+      fontSize: 10,
+      fontFamily: "inherit"
+    }, p);
+  }), /*#__PURE__*/React.createElement("text", {
+    x: PD.l + GW / 2,
+    y: H - 4,
+    textAnchor: "middle",
+    fill: "#6E7681",
+    fontSize: 11,
+    fontFamily: "inherit"
+  }, "Volume (mL)"), /*#__PURE__*/React.createElement("text", {
+    x: 14,
+    y: PD.t + GH / 2,
+    textAnchor: "middle",
+    fill: "#6E7681",
+    fontSize: 11,
+    fontFamily: "inherit",
+    transform: "rotate(-90,14,".concat(PD.t + GH / 2, ")")
+  }, "Pressure (mmHg)"), showRef && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("polyline", {
+    points: nEspL,
+    fill: "none",
+    stroke: "#8B949E",
+    strokeWidth: 1.2,
+    strokeDasharray: "5,3",
+    opacity: 0.5
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: nEdpL,
+    fill: "none",
+    stroke: "#8B949E",
+    strokeWidth: 1.2,
+    strokeDasharray: "5,3",
+    opacity: 0.5
+  }), /*#__PURE__*/React.createElement("polygon", {
+    points: nLoop,
+    fill: "#8B949E",
+    fillOpacity: 0.06,
+    stroke: "#8B949E",
+    strokeWidth: 1.8,
+    strokeDasharray: "4,3",
+    opacity: 0.55
+  }), /*#__PURE__*/React.createElement("text", {
+    x: vX(normSt.EDV) + 5,
+    y: pY(normSt.ESP) + 14,
+    fill: "#8B949E",
+    fontSize: 10,
+    fontFamily: "inherit",
+    fontWeight: 600,
+    opacity: 0.7
+  }, "Normal")), /*#__PURE__*/React.createElement("polyline", {
+    points: espL,
+    fill: "none",
+    stroke: col,
+    strokeWidth: 1.5,
+    opacity: 0.45,
+    strokeDasharray: "6,3"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: edpL,
+    fill: "none",
+    stroke: col,
+    strokeWidth: 1.5,
+    opacity: 0.45,
+    strokeDasharray: "6,3"
+  }), function () {
+    var lv = V0 + Math.min(90 / pm.Ees, 45),
+      lp = espvr(lv, pm.Ees);
+    return lp > 10 && lp < PMAX - 20 ? /*#__PURE__*/React.createElement("text", {
+      x: vX(lv) + 3,
+      y: pY(lp) - 5,
+      fill: col,
+      fontSize: 9,
+      opacity: 0.6,
+      fontFamily: "inherit",
+      fontWeight: 600
+    }, "ESPVR") : null;
+  }(), function () {
+    var v2 = 170,
+      p2 = edpvr(v2, pm.alpha);
+    if (p2 > 50) {
+      v2 = 140;
+      p2 = edpvr(v2, pm.alpha);
+    }
+    if (p2 > 50) {
+      v2 = 110;
+      p2 = edpvr(v2, pm.alpha);
+    }
+    return p2 > 1 && p2 < 60 ? /*#__PURE__*/React.createElement("text", {
+      x: vX(v2) + 3,
+      y: pY(p2) - 5,
+      fill: col,
+      fontSize: 9,
+      opacity: 0.6,
+      fontFamily: "inherit",
+      fontWeight: 600
+    }, "EDPVR") : null;
+  }(), /*#__PURE__*/React.createElement("line", {
+    x1: vX(pv.EDV),
+    y1: pY(0),
+    x2: vX(pv.ESV),
+    y2: pY(pv.ESP),
+    stroke: "#E3B341",
+    strokeWidth: 1.2,
+    strokeDasharray: "3,3",
+    opacity: 0.5
+  }), /*#__PURE__*/React.createElement("text", {
+    x: vX(pv.EDV) + 4,
+    y: pY(2),
+    fill: "#E3B341",
+    fontSize: 8,
+    opacity: 0.55,
+    fontFamily: "inherit"
+  }, "Ea"), /*#__PURE__*/React.createElement("polygon", {
+    points: loop,
+    fill: col,
+    fillOpacity: 0.1,
+    stroke: col,
+    strokeWidth: 2.2,
+    strokeLinejoin: "round"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: vX(pv.EDV),
+    cy: pY(Math.min(pv.LVEDP, 50)),
+    r: 3,
+    fill: col,
+    opacity: 0.7
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: vX(pv.ESV),
+    cy: pY(pv.ESP),
+    r: 3,
+    fill: col,
+    opacity: 0.7
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: vX(pv.EDV),
+    cy: pY(pv.ESP),
+    r: 3,
+    fill: col,
+    opacity: 0.4
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: vX(pv.ESV),
+    cy: pY(Math.min(pv.esvP0, 30)),
+    r: 3,
+    fill: col,
+    opacity: 0.4
+  }), /*#__PURE__*/React.createElement("text", {
+    x: vX(pv.EDV) + 7,
+    y: pY((Math.min(pv.LVEDP, 50) + pv.ESP) / 2),
+    fill: "#6E7681",
+    fontSize: 9,
+    fontFamily: "inherit",
+    fontWeight: 600
+  }, "b"), /*#__PURE__*/React.createElement("text", {
+    x: vX((pv.EDV + pv.ESV) / 2),
+    y: pY(pv.ESP) - 7,
+    fill: "#6E7681",
+    fontSize: 9,
+    textAnchor: "middle",
+    fontFamily: "inherit",
+    fontWeight: 600
+  }, "c"), /*#__PURE__*/React.createElement("text", {
+    x: vX(pv.ESV) - 8,
+    y: pY((pv.ESP + Math.min(pv.esvP0, 30)) / 2),
+    fill: "#6E7681",
+    fontSize: 9,
+    textAnchor: "end",
+    fontFamily: "inherit",
+    fontWeight: 600
+  }, "d"), /*#__PURE__*/React.createElement("text", {
+    x: vX((pv.EDV + pv.ESV) / 2),
+    y: pY(Math.min(edpvr((pv.EDV + pv.ESV) / 2, pm.alpha), 50)) + 15,
+    fill: "#6E7681",
+    fontSize: 9,
+    textAnchor: "middle",
+    fontFamily: "inherit",
+    fontWeight: 600
+  }, "a"), /*#__PURE__*/React.createElement("line", {
+    x1: vX(pv.ESV),
+    y1: pY(-8),
+    x2: vX(pv.EDV),
+    y2: pY(-8),
+    stroke: col,
+    strokeWidth: 1,
+    opacity: 0.5
+  }), /*#__PURE__*/React.createElement("text", {
+    x: vX((pv.ESV + pv.EDV) / 2),
+    y: pY(-16),
+    fill: col,
+    fontSize: 9,
+    textAnchor: "middle",
+    fontFamily: "inherit",
+    opacity: 0.65
+  }, "SV = ", Math.round(pv.SV), " mL"), hl && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("circle", {
+    cx: hl.cx,
+    cy: hl.cy,
+    r: 14,
+    fill: "none",
+    stroke: "#E3B341",
+    strokeWidth: 2.5,
+    opacity: 0.85
+  }, /*#__PURE__*/React.createElement("animate", {
+    attributeName: "r",
+    values: "12;16;12",
+    dur: "2s",
+    repeatCount: "indefinite"
+  }), /*#__PURE__*/React.createElement("animate", {
+    attributeName: "opacity",
+    values: "0.9;0.4;0.9",
+    dur: "2s",
+    repeatCount: "indefinite"
+  })), /*#__PURE__*/React.createElement("text", {
+    x: hl.cx,
+    y: hl.cy - 20,
+    fill: "#E3B341",
+    fontSize: 8,
+    textAnchor: "middle",
+    fontFamily: "inherit",
+    fontWeight: 600
+  }, hl.label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: 8,
+      right: 10,
+      fontSize: 8,
+      color: "#30363D",
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("div", null, "a = filling \xB7 b = isovolum. contraction"), /*#__PURE__*/React.createElement("div", null, "c = ejection \xB7 d = isovolum. relaxation"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(6, 1fr)",
+      gap: 3,
+      margin: "6px 0",
+      padding: "6px",
+      background: "#161B22",
+      borderRadius: 4,
+      border: "1px solid #21262D"
+    }
+  }, [{
+    l: "EDV",
+    v: pv.EDV,
+    u: "mL",
+    r: normSt.EDV
+  }, {
+    l: "LVEDP",
+    v: dispLVEDP,
+    u: "mmHg",
+    r: normSt.LVEDP
+  }, {
+    l: "ESV",
+    v: pv.ESV,
+    u: "mL",
+    r: normSt.ESV
+  }, {
+    l: "Afterload",
+    v: pv.ESP,
+    u: "mmHg",
+    r: normSt.ESP
+  }, {
+    l: "Stroke Vol",
+    v: pv.SV,
+    u: "mL",
+    r: normSt.SV
+  }, {
+    l: "Ejection Fr",
+    v: pv.EF,
+    u: "%",
+    r: normSt.EF
+  }].map(function (_ref4) {
+    var l = _ref4.l,
+      v = _ref4.v,
+      u = _ref4.u,
+      r = _ref4.r;
+    return /*#__PURE__*/React.createElement("div", {
+      key: l,
+      style: {
+        textAlign: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 7,
+        color: "#484F58",
+        textTransform: "uppercase",
+        letterSpacing: 0.5
+      }
+    }, l), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#E6EDF3"
+      }
+    }, v >= 100 ? Math.round(v) : Number(v).toFixed(1), /*#__PURE__*/React.createElement(D, {
+      val: v,
+      reference: r
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 7,
+        color: "#30363D"
+      }
+    }, u));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(4, 1fr)",
+      gap: 6,
+      margin: "4px 0",
+      padding: "8px",
+      background: "#161B22",
+      borderRadius: 4,
+      border: "1px solid #21262D"
+    }
+  }, [{
+    key: "Ees",
+    label: "Contractility (Ees)",
+    min: 0.5,
+    max: 5,
+    step: 0.1
+  }, {
+    key: "EDV",
+    label: "Preload (EDV)",
+    min: 60,
+    max: 180,
+    step: 2
+  }, {
+    key: "Ea",
+    label: "Afterload (Ea)",
+    min: 0.5,
+    max: 4,
+    step: 0.1
+  }, {
+    key: "alpha",
+    label: "Compliance (α)",
+    min: 0.005,
+    max: 0.04,
+    step: 0.001
+  }].map(function (_ref5) {
+    var _sc$key;
+    var key = _ref5.key,
+      label = _ref5.label,
+      min = _ref5.min,
+      max = _ref5.max,
+      s = _ref5.step;
+    var val = mode === "scenario" ? (_sc$key = sc[key]) !== null && _sc$key !== void 0 ? _sc$key : NORM[key] : sl[key];
+    return /*#__PURE__*/React.createElement("div", {
+      key: key
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 8,
+        color: "#8B949E",
+        marginBottom: 2,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis"
+      }
+    }, label), /*#__PURE__*/React.createElement("input", {
+      type: "range",
+      min: min,
+      max: max,
+      step: s,
+      value: val,
+      onChange: function onChange(e) {
+        return slide(key, parseFloat(e.target.value));
+      },
+      style: {
+        width: "100%",
+        accentColor: col,
+        height: 4
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        color: "#E6EDF3",
+        fontWeight: 600,
+        textAlign: "center"
+      }
+    }, key === "alpha" ? val.toFixed(3) : Number(val).toFixed(1)));
+  })), steps && mode === "scenario" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#161B22",
+      border: "1px solid ".concat(col, "22"),
+      borderRadius: 4,
+      padding: "10px 12px",
+      marginTop: 6
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 8
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: col
+    }
+  }, sc.label, scKey !== "normal" ? " — Mechanism" : " — How It Works"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 6
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setStep(function (s) {
+        return Math.max(0, s - 1);
+      });
+    },
+    disabled: step === 0,
+    style: {
+      padding: "2px 10px",
+      fontSize: 11,
+      fontWeight: 600,
+      background: step === 0 ? "#0D1117" : col + "18",
+      color: step === 0 ? "#30363D" : col,
+      border: "1px solid ".concat(step === 0 ? "#21262D" : col + "44"),
+      borderRadius: 3,
+      cursor: step === 0 ? "default" : "pointer",
+      fontFamily: "inherit"
+    }
+  }, "\u2190 Prev"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 10,
+      color: "#6E7681",
+      minWidth: 32,
+      textAlign: "center"
+    }
+  }, step + 1, "/", nSteps), /*#__PURE__*/React.createElement("button", {
+    onClick: function onClick() {
+      return setStep(function (s) {
+        return Math.min(nSteps - 1, s + 1);
+      });
+    },
+    disabled: step === nSteps - 1,
+    style: {
+      padding: "2px 10px",
+      fontSize: 11,
+      fontWeight: 600,
+      background: step === nSteps - 1 ? "#0D1117" : col + "18",
+      color: step === nSteps - 1 ? "#30363D" : col,
+      border: "1px solid ".concat(step === nSteps - 1 ? "#21262D" : col + "44"),
+      borderRadius: 3,
+      cursor: step === nSteps - 1 ? "default" : "pointer",
+      fontFamily: "inherit"
+    }
+  }, "Next \u2192"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 4,
+      marginBottom: 8
+    }
+  }, steps.map(function (_, i) {
+    return /*#__PURE__*/React.createElement("div", {
+      key: i,
+      onClick: function onClick() {
+        return setStep(i);
+      },
+      style: {
+        flex: 1,
+        height: 3,
+        borderRadius: 2,
+        cursor: "pointer",
+        background: i <= step ? col : "#21262D",
+        transition: "background 0.2s"
+      }
+    });
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#E6EDF3",
+      marginBottom: 4
+    }
+  }, steps[step].title), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11,
+      color: "#8B949E",
+      lineHeight: 1.7,
+      minHeight: 48
+    }
+  }, steps[step].text)), mode === "manual" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#161B22",
+      border: "1px solid #21262D",
+      borderRadius: 4,
+      padding: "8px 12px",
+      marginTop: 6,
+      fontSize: 10,
+      color: "#6E7681",
+      lineHeight: 1.6
+    }
+  }, /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#E6EDF3"
+    }
+  }, "Manual mode \u2014 independent effects (cf025)"), /*#__PURE__*/React.createElement("br", null), "Afterload (Ea) is held at 2.0 unless you move the Ea slider. ESP stays ~120 mmHg.", /*#__PURE__*/React.createElement("br", null), "\u2022 ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#BC8CFF"
+    }
+  }, "Ees"), ": rotates ESPVR \u2192 left side of loop moves (ESV changes), right side stays", /*#__PURE__*/React.createElement("br", null), "\u2022 ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#1F6FEB"
+    }
+  }, "EDV"), ": slides along same ESPVR \u2192 right side moves, left side stays", /*#__PURE__*/React.createElement("br", null), "\u2022 ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#A371F7"
+    }
+  }, "Ea"), ": changes afterload \u2192 ESP rises/falls, ESV changes", /*#__PURE__*/React.createElement("br", null), "\u2022 ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#F0883E"
+    }
+  }, "\u03B1"), ": compliance \u2014 stiffer wall fills to smaller EDV at same filling pressure"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 7,
+      color: "#21262D",
+      textAlign: "center",
+      marginTop: 8
+    }
+  }, "Dr. Ian Murray \xB7 CC BY-NC-SA \xB7 Sagawa/Suga \xB7 CVPhysiology cf025/cf026")));
+}
+var root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(/*#__PURE__*/React.createElement(PVLoop, null));
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJfUmVhY3QiLCJSZWFjdCIsInVzZVN0YXRlIiwidXNlTWVtbyIsInVzZUNhbGxiYWNrIiwiVjAiLCJBX0VEIiwiUkVGX0FMUEhBIiwiZ2V0RWZmZWN0aXZlRURWIiwic2xpZGVyRURWIiwiYWxwaGEiLCJNYXRoIiwiYWJzIiwicmVmTFZFRFAiLCJleHAiLCJtaW4iLCJlZHYiLCJsb2ciLCJtYXgiLCJjb21wdXRlU3RhdGUiLCJFZXMiLCJFRFYiLCJFYSIsIkVTViIsIkVTUCIsIlNWIiwiRUYiLCJMVkVEUCIsImVzdlAwIiwiY29tcHV0ZVBpbm5lZCIsInJlZkVTUCIsImVkcHZyIiwiViIsImVzcHZyIiwiU0MiLCJub3JtYWwiLCJsYWJlbCIsImNvbG9yIiwiaGlnaGxpZ2h0Iiwic3RlcHMiLCJ0aXRsZSIsInRleHQiLCJoZnJlZiIsImhmcGVmIiwiYXMiLCJhciIsIm1zIiwibXIiLCJoZW1vcnJoYWdlIiwiZmx1aWQiLCJpbm90cm9wZSIsIk5PUk0iLCJub3JtU3QiLCJXIiwiSCIsIlBEIiwidCIsInIiLCJiIiwibCIsIkdXIiwiR0giLCJWTUFYIiwiUE1BWCIsInZYIiwidiIsInBZIiwicCIsIm1ha2VMb29wIiwic3QiLCJwdHMiLCJpIiwicHVzaCIsImYiLCJzdHJhaWdodFAiLCJwZWFrQm93IiwiYm93Iiwic2luIiwiUEkiLCJlc3B2ckF0ViIsIm1hcCIsIl9yZWYiLCJfcmVmMiIsIl9zbGljZWRUb0FycmF5IiwiY29uY2F0IiwidG9GaXhlZCIsImpvaW4iLCJtYWtlQ3VydmUiLCJ0eXBlIiwicGFyYW0iLCJEIiwiX3JlZjMiLCJ2YWwiLCJyZWZlcmVuY2UiLCJkIiwiY3JlYXRlRWxlbWVudCIsInN0eWxlIiwiZm9udFNpemUiLCJtYXJnaW5MZWZ0IiwiZm9udFdlaWdodCIsImdldEhMIiwia2V5IiwicHYiLCJtIiwidG9wbGVmdCIsImN4IiwiY3kiLCJib3R0b21yaWdodCIsInRvcHJpZ2h0IiwiUFZMb29wIiwiX3VzZVN0YXRlIiwiX3VzZVN0YXRlMiIsInNjS2V5Iiwic2V0U2NLZXkiLCJfdXNlU3RhdGUzIiwiX3VzZVN0YXRlNCIsInN0ZXAiLCJzZXRTdGVwIiwiX3VzZVN0YXRlNSIsIl9lYU1vdmVkIiwiX3VzZVN0YXRlNiIsInNsIiwic2V0U2wiLCJfdXNlU3RhdGU3IiwiX3VzZVN0YXRlOCIsIm1vZGUiLCJzZXRNb2RlIiwic2MiLCJwbSIsImxvb3AiLCJuTG9vcCIsImVzcEwiLCJlZHBMIiwibkVzcEwiLCJuRWRwTCIsImNvbCIsInNob3dSZWYiLCJuU3RlcHMiLCJsZW5ndGgiLCJobCIsInBpY2tTYyIsImsiLCJzbGlkZSIsInNuYXAiLCJfZGVmaW5lUHJvcGVydHkiLCJwcmV2IiwiX29iamVjdFNwcmVhZCIsInZUaWNrcyIsInBUaWNrcyIsImRpc3BMVkVEUCIsImdyb3VwcyIsImtleXMiLCJiYWNrZ3JvdW5kIiwibWluSGVpZ2h0IiwiZm9udEZhbWlseSIsInBhZGRpbmciLCJtYXhXaWR0aCIsIm1hcmdpbiIsInRleHRBbGlnbiIsIm1hcmdpbkJvdHRvbSIsImxldHRlclNwYWNpbmciLCJ0ZXh0VHJhbnNmb3JtIiwibWFyZ2luVG9wIiwiZGlzcGxheSIsImZsZXhEaXJlY3Rpb24iLCJnYXAiLCJnIiwiYWxpZ25JdGVtcyIsImZsZXhXcmFwIiwid2lkdGgiLCJmbGV4U2hyaW5rIiwicyIsIm9uIiwib25DbGljayIsImJvcmRlciIsImJvcmRlclJhZGl1cyIsImN1cnNvciIsInRyYW5zaXRpb24iLCJwb3NpdGlvbiIsInZpZXdCb3giLCJoZWlnaHQiLCJ4MSIsInkxIiwieDIiLCJ5MiIsInN0cm9rZSIsInN0cm9rZVdpZHRoIiwieCIsInkiLCJ0ZXh0QW5jaG9yIiwiZmlsbCIsInRyYW5zZm9ybSIsIkZyYWdtZW50IiwicG9pbnRzIiwic3Ryb2tlRGFzaGFycmF5Iiwib3BhY2l0eSIsImZpbGxPcGFjaXR5IiwibHYiLCJscCIsInYyIiwicDIiLCJzdHJva2VMaW5lam9pbiIsInJvdW5kIiwiYXR0cmlidXRlTmFtZSIsInZhbHVlcyIsImR1ciIsInJlcGVhdENvdW50IiwidG9wIiwicmlnaHQiLCJsaW5lSGVpZ2h0IiwiZ3JpZFRlbXBsYXRlQ29sdW1ucyIsInUiLCJfcmVmNCIsIk51bWJlciIsIl9yZWY1IiwiX3NjJGtleSIsIndoaXRlU3BhY2UiLCJvdmVyZmxvdyIsInRleHRPdmVyZmxvdyIsInZhbHVlIiwib25DaGFuZ2UiLCJlIiwicGFyc2VGbG9hdCIsInRhcmdldCIsImFjY2VudENvbG9yIiwianVzdGlmeUNvbnRlbnQiLCJkaXNhYmxlZCIsIm1pbldpZHRoIiwiXyIsImZsZXgiLCJyb290IiwiUmVhY3RET00iLCJjcmVhdGVSb290IiwiZG9jdW1lbnQiLCJnZXRFbGVtZW50QnlJZCIsInJlbmRlciJdLCJzb3VyY2VzIjpbIklubGluZSBCYWJlbCBzY3JpcHQiXSwic291cmNlc0NvbnRlbnQiOlsiXG4gICAgY29uc3QgeyB1c2VTdGF0ZSwgdXNlTWVtbywgdXNlQ2FsbGJhY2sgfSA9IFJlYWN0O1xuXG4gICAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQXG4gICAgLy8gUFJFU1NVUkXigJNWT0xVTUUgTE9PUCBTSU1VTEFUT1IgdjRcbiAgICAvLyBDVlBoeXNpb2xvZ3kgY2YwMjUgKGluZGVwZW5kZW50IGVmZmVjdHMpICsgY2YwMjYgKGludGVyZGVwZW5kZW50KVxuICAgIC8vXG4gICAgLy8gRVNQVlI6IFAgPSBFZXMgw5cgKFYg4oiSIFYwKSAgICAgICAgIGNvbnRyYWN0aWxpdHkgYm91bmRhcnlcbiAgICAvLyBFRFBWUjogUCA9IEEgw5cgKGVeKM6xw5dWKSDiiJIgMSkgICAgIHBhc3NpdmUgY29tcGxpYW5jZVxuICAgIC8vIEVhOiAgICBFU1AgPSBFYSDDlyAoRURWIOKIkiBFU1YpICAgICAgYXJ0ZXJpYWwgZWxhc3RhbmNlXG4gICAgLy8gRVNWICA9IChFYcOXRURWICsgRWVzw5dWMCkvKEVlcytFYSlcbiAgICAvL1xuICAgIC8vIElOREVQRU5ERU5UIEVGRkVDVFMgKGNmMDI1IOKAlCB3aGF0IHRoZSBzbGlkZXJzIG1vZGVsKTpcbiAgICAvLyAgIOKGkVByZWxvYWQgKEVEVik6ICBFRFbihpEsIEVTViB1bmNoYW5nZWQsIFNW4oaRICAoc2xpZGVzIGFsb25nIEVTUFZSKVxuICAgIC8vICAg4oaRSW5vdHJvcHkgKEVlcyk6IEVTUFZSIHN0ZWVwZW5zLCBFU1bihpMsIEVEViB1bmNoYW5nZWQsIFNW4oaRICh3aWRlcilcbiAgICAvLyAgIOKGkUFmdGVybG9hZCAoRWEpOiBFU1DihpEsIEVTVuKGkSwgRURWIHVuY2hhbmdlZCwgU1bihpMgKHRhbGxlci9uYXJyb3dlcilcbiAgICAvLyAgIOKGkVN0aWZmbmVzcyAozrEpOiAgRURQVlIgc2hpZnRzIHVwLCBFRFbihpMgYXQgc2FtZSBmaWxsaW5nIHByZXNzdXJlIChob3Jpem9udGFsIHNoaWZ0KVxuICAgIC8vXG4gICAgLy8gQlVHIEZJWEVTIGluIHY0LjE6XG4gICAgLy8gICAtIFNsaWRlciB0cmFuc2l0aW9uIHNuYXBzaG90cyBzY2VuYXJpbyBwYXJhbXMgKG5vIGFmdGVybG9hZCBsZWFrKVxuICAgIC8vICAgLSBDb21wbGlhbmNlIHNsaWRlciBzaGlmdHMgRURWIGhvcml6b250YWxseSB2aWEgZmlsbGluZy1wcmVzc3VyZSBlcXVpdmFsZW5jZVxuICAgIC8vICAgLSBFYWNoIHNsaWRlciBpcyB0cnVseSBpbmRlcGVuZGVudCAoY2YwMjUpXG4gICAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQXG5cbiAgICBjb25zdCBWMCA9IDEwLCBBX0VEID0gMC41LCBSRUZfQUxQSEEgPSAwLjAyO1xuXG4gICAgZnVuY3Rpb24gZ2V0RWZmZWN0aXZlRURWKHNsaWRlckVEViwgYWxwaGEpIHtcbiAgICAgIGlmIChNYXRoLmFicyhhbHBoYSAtIFJFRl9BTFBIQSkgPCAwLjAwMSkgcmV0dXJuIHNsaWRlckVEVjtcbiAgICAgIGNvbnN0IHJlZkxWRURQID0gQV9FRCAqIChNYXRoLmV4cChSRUZfQUxQSEEgKiBzbGlkZXJFRFYpIC0gMSk7XG4gICAgICBpZiAoYWxwaGEgPD0gMC4wMDEpIHJldHVybiBNYXRoLm1pbihzbGlkZXJFRFYgKiAxLjMsIDIwMCk7XG4gICAgICBjb25zdCBlZHYgPSBNYXRoLmxvZyhyZWZMVkVEUCAvIEFfRUQgKyAxKSAvIGFscGhhO1xuICAgICAgcmV0dXJuIE1hdGgubWF4KDUwLCBNYXRoLm1pbihlZHYsIDIwMCkpO1xuICAgIH1cblxuICAgIGZ1bmN0aW9uIGNvbXB1dGVTdGF0ZShFZXMsIEVEViwgRWEsIGFscGhhKSB7XG4gICAgICBjb25zdCBFU1YgPSAoRWEgKiBFRFYgKyBFZXMgKiBWMCkgLyAoRWVzICsgRWEpO1xuICAgICAgY29uc3QgRVNQID0gRWVzICogKEVTViAtIFYwKTtcbiAgICAgIGNvbnN0IFNWID0gRURWIC0gRVNWO1xuICAgICAgY29uc3QgRUYgPSAoU1YgLyBFRFYpICogMTAwO1xuICAgICAgY29uc3QgTFZFRFAgPSBBX0VEICogKE1hdGguZXhwKGFscGhhICogRURWKSAtIDEpO1xuICAgICAgY29uc3QgZXN2UDAgPSBBX0VEICogKE1hdGguZXhwKGFscGhhICogRVNWKSAtIDEpO1xuICAgICAgcmV0dXJuIHsgRURWLCBFU1YsIEVTUCwgU1YsIEVGLCBMVkVEUCwgZXN2UDAgfTtcbiAgICB9XG5cbiAgICBmdW5jdGlvbiBjb21wdXRlUGlubmVkKEVlcywgc2xpZGVyRURWLCBhbHBoYSwgcmVmRVNQLCByZWZMVkVEUCkge1xuICAgICAgY29uc3QgRURWID0gTWF0aC5tYXgoNTAsIE1hdGgubWluKE1hdGgubG9nKHJlZkxWRURQIC8gQV9FRCArIDEpIC8gYWxwaGEsIHNsaWRlckVEVikpO1xuICAgICAgY29uc3QgRVNWID0gTWF0aC5taW4ocmVmRVNQIC8gRWVzICsgVjAsIEVEViAtIDEpO1xuICAgICAgY29uc3QgRVNQID0gcmVmRVNQO1xuICAgICAgY29uc3QgU1YgPSBFRFYgLSBFU1Y7XG4gICAgICBjb25zdCBFRiA9IChTViAvIEVEVikgKiAxMDA7XG4gICAgICBjb25zdCBMVkVEUCA9IEFfRUQgKiAoTWF0aC5leHAoYWxwaGEgKiBFRFYpIC0gMSk7XG4gICAgICBjb25zdCBlc3ZQMCA9IEFfRUQgKiAoTWF0aC5leHAoYWxwaGEgKiBFU1YpIC0gMSk7XG4gICAgICByZXR1cm4geyBFRFYsIEVTViwgRVNQLCBTViwgRUYsIExWRURQLCBlc3ZQMCB9O1xuICAgIH1cblxuICAgIGZ1bmN0aW9uIGVkcHZyKFYsIGFscGhhKSB7IHJldHVybiBBX0VEICogKE1hdGguZXhwKGFscGhhICogVikgLSAxKTsgfVxuICAgIGZ1bmN0aW9uIGVzcHZyKFYsIEVlcykgeyByZXR1cm4gRWVzICogKFYgLSBWMCk7IH1cblxuICAgIGNvbnN0IFNDID0ge1xuICAgICAgbm9ybWFsOiB7XG4gICAgICAgIGxhYmVsOiBcIk5vcm1hbFwiLCBFZXM6IDIuNSwgRURWOiAxMjAsIEVhOiAyLjAsIGFscGhhOiAwLjAyLCBjb2xvcjogXCIjNThBNkZGXCIsXG4gICAgICAgIGhpZ2hsaWdodDogbnVsbCxcbiAgICAgICAgc3RlcHM6IFtcbiAgICAgICAgICB7IHRpdGxlOiBcIkJhc2VsaW5lXCIsIHRleHQ6IFwiQSBoZWFsdGh5IGxlZnQgdmVudHJpY2xlLiBUd28gYm91bmRhcnkgY3VydmVzIGNvbnRyb2wgdGhlIGxvb3A6IEVTUFZSIChjb250cmFjdGlsaXR5IGNlaWxpbmcpIGFuZCBFRFBWUiAocGFzc2l2ZSBjb21wbGlhbmNlIGZsb29yKS4gVGhlIGxvb3Agc2hhcGUgZW1lcmdlcyBmcm9tIHRoZXNlIGNvbnN0cmFpbnRzLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJGaWxsaW5nIChwaGFzZSBhKVwiLCB0ZXh0OiBcIk1pdHJhbCB2YWx2ZSBvcGVucyDihpIgYmxvb2QgZmxvd3MgZnJvbSBsZWZ0IGF0cml1bSBpbnRvIHRoZSB2ZW50cmljbGUgYWxvbmcgdGhlIEVEUFZSLiBWb2x1bWUgcmlzZXMgZ2VudGx5IGJlY2F1c2UgdGhlIG5vcm1hbCB3YWxsIGlzIGNvbXBsaWFudCDigJQgZmlsbGluZyBpcyBlYXN5IGFuZCBwcmVzc3VyZSBzdGF5cyBsb3cuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIlN5c3RvbGUgKGIg4oaSIGMg4oaSIGQpXCIsIHRleHQ6IFwiUGhhc2UgYjogYWxsIHZhbHZlcyBjbG9zZWQsIHByZXNzdXJlIGJ1aWxkcy4gUGhhc2UgYzogYW9ydGljIHZhbHZlIG9wZW5zLCBibG9vZCBpcyBlamVjdGVkLiBUaGUgdG9wLWxlZnQgY29ybmVyIHNpdHMgb24gdGhlIEVTUFZSIOKAlCB0aGUgbWF4aW11bSB0aGUgdmVudHJpY2xlIGNhbiBzcXVlZXplIGF0IHRoYXQgdm9sdW1lLiBQaGFzZSBkOiBwcmVzc3VyZSBmYWxscyBiYWNrIGRvd24uXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIlNsaWRpbmcgdnMuIHJvdGF0aW5nXCIsIHRleHQ6IFwiUHJlbG9hZCBjaGFuZ2VzIFNMSURFIHRoZSBsb29wIGFsb25nIGEgZml4ZWQgRVNQVlIuIENvbnRyYWN0aWxpdHkgY2hhbmdlcyBST1RBVEUgdGhlIEVTUFZSIGl0c2VsZi4gQm90aCBjYW4gaW5jcmVhc2UgU3Ryb2tlIFZvbHVtZSAoU1YpLCBidXQgdGhyb3VnaCBmdW5kYW1lbnRhbGx5IGRpZmZlcmVudCBtZWNoYW5pc21zLiBUcnkgdGhlIHNsaWRlcnMgdG8gc2VlIHRoaXMuXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIGhmcmVmOiB7XG4gICAgICAgIGxhYmVsOiBcIkhGckVGXCIsIEVlczogMS4wLCBFRFY6IDE4MCwgRWE6IDIuMiwgYWxwaGE6IDAuMDIsIGNvbG9yOiBcIiNGODUxNDlcIixcbiAgICAgICAgaGlnaGxpZ2h0OiBcInRvcGxlZnRcIixcbiAgICAgICAgc3RlcHM6IFtcbiAgICAgICAgICB7IHRpdGxlOiBcIlRoZSBoZWFydCBtdXNjbGUgd2Vha2Vuc1wiLCB0ZXh0OiBcIkluIGRpbGF0ZWQgY2FyZGlvbXlvcGF0aHkgb3IgYWZ0ZXIgYSBsYXJnZSBNSSwgdGhlIHZlbnRyaWNsZSBsb3NlcyBjb250cmFjdGlsZSBmb3JjZS4gVGhlIEVTUFZSIGZsYXR0ZW5zIOKAlCB0aGUgY2VpbGluZyBkcm9wcy4gVGhlIHZlbnRyaWNsZSBzaW1wbHkgY2Fubm90IHNxdWVlemUgYXMgaGFyZC5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiQ2FuJ3QgZW1wdHkg4oaSIHZvbHVtZSBiYWNrcyB1cFwiLCB0ZXh0OiBcIkJlY2F1c2UgdGhlIHZlbnRyaWNsZSBjYW4ndCBlbXB0eSBwcm9wZXJseSwgYmxvb2QgYWNjdW11bGF0ZXMuIFRoZSBib2R5IHJldGFpbnMgZmx1aWQgKFJBQVMgYWN0aXZhdGlvbiksIHB1c2hpbmcgdGhlIGxvb3AgcmlnaHR3YXJkLiBUaGUgdmVudHJpY2xlIGRpbGF0ZXMuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIkZpbGxpbmcgcHJlc3N1cmVzIHJpc2Ug4oaSIGNvbmdlc3Rpb25cIiwgdGV4dDogXCJNb3JlIHZvbHVtZSBpbiB0aGUgdmVudHJpY2xlIG1lYW5zIGhpZ2hlciBkaWFzdG9saWMgcHJlc3N1cmUgKExWRURQIHJpc2VzKS4gVGhpcyBiYWNrcyB1cCBpbnRvIHRoZSBsdW5ncyDihpIgcHVsbW9uYXJ5IGNvbmdlc3Rpb24g4oaSIGR5c3BuZWEuIFRoZSBTdGFybGluZyBtZWNoYW5pc20gcGFydGlhbGx5IGNvbXBlbnNhdGVzIFN0cm9rZSBWb2x1bWUgKFNWKSwgYnV0IGF0IHRoZSBjb3N0IG9mIGNvbmdlc3Rpb24uXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIkVqZWN0aW9uIEZyYWN0aW9uIChFRikgZHJvcHNcIiwgdGV4dDogXCJFRiBmYWxscyB0byB+MzAlLiBUaGUgbG9vcCBpcyB3aWRlIGJ1dCBmbGF0IOKAlCBsb3RzIG9mIHZvbHVtZSwgcG9vciBlbXB0eWluZy4gVHJlYXRtZW50IHRhcmdldHM6IHJlZHVjZSBwcmVsb2FkIChkaXVyZXRpY3MpLCByZWR1Y2UgYWZ0ZXJsb2FkIChBQ0UgaW5oaWJpdG9ycyksIGFuZCBpZiBwb3NzaWJsZSBzdXBwb3J0IGNvbnRyYWN0aWxpdHkuXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIGhmcGVmOiB7XG4gICAgICAgIGxhYmVsOiBcIkhGcEVGXCIsIEVlczogMy4wLCBFRFY6IDEwNSwgRWE6IDIuMiwgYWxwaGE6IDAuMDM1LCBjb2xvcjogXCIjRjA4ODNFXCIsXG4gICAgICAgIGhpZ2hsaWdodDogXCJib3R0b21yaWdodFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiVGhlIHdhbGwgc3RpZmZlbnNcIiwgdGV4dDogXCJJbiBoeXBlcnRlbnNpdmUgaGVhcnQgZGlzZWFzZSwgYWdpbmcsIG9yIGFteWxvaWQsIHRoZSB2ZW50cmljdWxhciB3YWxsIGJlY29tZXMgc3RpZmYuIFRoaW5rIG9mIGluZmxhdGluZyBhIHN0aWZmIGJhbGxvb24g4oCUIGl0IHRha2VzIG11Y2ggbW9yZSBwcmVzc3VyZSB0byBmaWxsIHRoZSBzYW1lIHZvbHVtZS4gVGhlIEVEUFZSIGN1cnZlIHNoaWZ0cyB1cHdhcmQuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIkZpbGxpbmcgcHJlc3N1cmUgcmlzZXMgZGVzcGl0ZSBsZXNzIHZvbHVtZVwiLCB0ZXh0OiBcIkV2ZW4gdGhvdWdoIHRoZSB2ZW50cmljbGUgZmlsbHMgdG8gYSBTTUFMTEVSIHZvbHVtZSwgZGlhc3RvbGljIHByZXNzdXJlIChMVkVEUCkgaXMgbXVjaCBoaWdoZXIuIFRoZSBib3R0b20gb2YgdGhlIGxvb3AgcmlzZXMuIFRoaXMgaXMgdGhlIG9wcG9zaXRlIG9mIEhGckVGIOKAlCB0aGUgdmVudHJpY2xlIGlzIHNtYWxsIGFuZCBzdGlmZiwgbm90IGJpZyBhbmQgZmxvcHB5LlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJTYW1lIHN5bXB0b21zLCBkaWZmZXJlbnQgbWVjaGFuaXNtXCIsIHRleHQ6IFwiSGlnaCBMVkVEUCBiYWNrcyB1cCBpbnRvIHRoZSBsdW5ncyDihpIgcHVsbW9uYXJ5IGNvbmdlc3Rpb24g4oaSIGR5c3BuZWEuIFRoZSBwYXRpZW50IGxvb2tzIGlkZW50aWNhbCB0byBIRnJFRiBjbGluaWNhbGx5IOKAlCBidXQgdGhlIGNhdXNlIGlzIGltcGFpcmVkIGZpbGxpbmcsIG5vdCBpbXBhaXJlZCBjb250cmFjdGlvbi5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiVGhlIGRpYWdub3N0aWMgdHJhcFwiLCB0ZXh0OiBcIkVqZWN0aW9uIEZyYWN0aW9uIChFRikgaXMgcHJlc2VydmVkICg+NTAlKSDigJQgdGhlIHZlbnRyaWNsZSBlbXB0aWVzIGZpbmUsIGl0IGp1c3QgY2FuJ3QgZmlsbC4gRWNobyBzaG93cyAnbm9ybWFsIEVGJyBidXQgZGlhc3RvbGljIGR5c2Z1bmN0aW9uIChlbGV2YXRlZCBFL2UnKS4gVGhpcyBpcyB3aHkgSEZwRUYgd2FzIGhpc3RvcmljYWxseSBtaXNzZWQuXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIGFzOiB7XG4gICAgICAgIGxhYmVsOiBcIkFvcnRpYyBTdGVub3Npc1wiLCBFZXM6IDMuMCwgRURWOiAxMzAsIEVhOiAzLjUsIGFscGhhOiAwLjAyLCBjb2xvcjogXCIjQTM3MUY3XCIsXG4gICAgICAgIGhpZ2hsaWdodDogXCJ0b3ByaWdodFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiRml4ZWQgb2JzdHJ1Y3Rpb24gdG8gb3V0Zmxvd1wiLCB0ZXh0OiBcIkEgc3Rlbm90aWMgYW9ydGljIHZhbHZlIGNyZWF0ZXMgYSBiYXJyaWVyIHRvIGVqZWN0aW9uLiBUaGUgdmVudHJpY2xlIG11c3QgZ2VuZXJhdGUgbXVjaCBoaWdoZXIgcHJlc3N1cmUgKGFmdGVybG9hZC9FU1ApIHRvIHB1c2ggYmxvb2QgdGhyb3VnaCB0aGUgbmFycm93ZWQgb3BlbmluZy4gVGhlIGxvb3AgZ3Jvd3MgdGFsbGVyLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJQcmVzc3VyZSBvdmVybG9hZCDihpIgaHlwZXJ0cm9waHlcIiwgdGV4dDogXCJUaGUgdmVudHJpY2xlIGNvbXBlbnNhdGVzIGJ5IHRoaWNrZW5pbmcgaXRzIHdhbGxzIChjb25jZW50cmljIGh5cGVydHJvcGh5KSB0byBnZW5lcmF0ZSB0aGUgaGlnaGVyIHByZXNzdXJlcyBuZWVkZWQuIFRoZSBsb29wIGJlY29tZXMgdGFsbCBhbmQgbmFycm93IOKAlCBoaWdoIGFmdGVybG9hZCAoRVNQKSwgcmVkdWNlZCBTdHJva2UgVm9sdW1lIChTVikuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIkhpZ2ggZW5lcmd5IGNvc3RcIiwgdGV4dDogXCJBIHRhbGwsIG5hcnJvdyBsb29wIG1lYW5zIGVub3Jtb3VzIG15b2NhcmRpYWwgb3h5Z2VuIGRlbWFuZC4gVGhlIHRoaWNrIHdhbGwgYWxzbyBoYXMgcG9vciBzdWJlbmRvY2FyZGlhbCBwZXJmdXNpb24g4oaSIHBhdGllbnRzIGRldmVsb3AgYW5naW5hIGV2ZW4gd2l0aG91dCBjb3JvbmFyeSBhcnRlcnkgZGlzZWFzZS5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiRGVjb21wZW5zYXRpb25cIiwgdGV4dDogXCJJbml0aWFsbHkgU3Ryb2tlIFZvbHVtZSAoU1YpIGFuZCBFamVjdGlvbiBGcmFjdGlvbiAoRUYpIGFyZSBtYWludGFpbmVkIHRocm91Z2ggaHlwZXJ0cm9waHkuIEJ1dCBldmVudHVhbGx5IHRoZSBtdXNjbGUgY2FuJ3Qga2VlcCB1cCDihpIgY29udHJhY3RpbGl0eSBmYWxscyDihpIgRUYgZHJvcHMg4oaSIHJhcGlkIGNsaW5pY2FsIGRldGVyaW9yYXRpb24uXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIGFyOiB7XG4gICAgICAgIGxhYmVsOiBcIkFvcnRpYyBSZWd1cmdcIiwgRWVzOiAyLjUsIEVEVjogMTgwLCBFYTogMS41LCBhbHBoYTogMC4wMTgsIGNvbG9yOiBcIiNEMkE4RkZcIixcbiAgICAgICAgaGlnaGxpZ2h0OiBcImJvdHRvbXJpZ2h0XCIsXG4gICAgICAgIHN0ZXBzOiBbXG4gICAgICAgICAgeyB0aXRsZTogXCJCYWNrd2FyZCBsZWFrIGR1cmluZyBkaWFzdG9sZVwiLCB0ZXh0OiBcIkFuIGluY29tcGV0ZW50IGFvcnRpYyB2YWx2ZSBsZXRzIGJsb29kIGxlYWsgYmFja3dhcmQgZnJvbSB0aGUgYW9ydGEgaW50byB0aGUgdmVudHJpY2xlIGR1cmluZyBkaWFzdG9sZS4gVGhlIExWIGZpbGxzIGZyb20gVFdPIHNvdXJjZXMg4oCUIHRoZSBsZWZ0IGF0cml1bSBBTkQgdGhlIGFvcnRhIOKAlCBzbyBpdCBvdmVyZmlsbHMgZHJhbWF0aWNhbGx5LlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJWb2x1bWUgb3ZlcmxvYWQgd2lkZW5zIHRoZSBsb29wXCIsIHRleHQ6IFwiVGhlIHZlbnRyaWNsZSBkaWxhdGVzIHRvIGFjY29tbW9kYXRlIHRoZSBleHRyYSB2b2x1bWUuIFRoZSBsb29wIHNoaWZ0cyByaWdodCBhbmQgYmVjb21lcyB3aWRlLiBUb3RhbCBTdHJva2UgVm9sdW1lIChTVikgaXMgdmVyeSBsYXJnZSwgYnV0IHNvbWUgb2YgaXQganVzdCBsZWFrcyBiYWNrd2FyZCDigJQgZm9yd2FyZCBTViB0byB0aGUgYm9keSBpcyByZWR1Y2VkLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJFY2NlbnRyaWMgcmVtb2RlbGluZ1wiLCB0ZXh0OiBcIkNocm9uaWMgdm9sdW1lIG92ZXJsb2FkIGNhdXNlcyB0aGUgdmVudHJpY2xlIHRvIHJlbW9kZWwg4oCUIGl0IHN0cmV0Y2hlcyAoc2FyY29tZXJlcyBhZGRlZCBpbiBzZXJpZXMpLiBUaGUgY2hhbWJlciBnZXRzIGJpZ2dlciBidXQgY29tcGxpYW5jZSBtYXkgYWN0dWFsbHkgaW1wcm92ZSBpbml0aWFsbHksIGtlZXBpbmcgZmlsbGluZyBwcmVzc3VyZXMgbWFuYWdlYWJsZS5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiUHJvZ3Jlc3NpdmUgZmFpbHVyZVwiLCB0ZXh0OiBcIk92ZXIgdGltZSwgdGhlIGNocm9uaWMgZGlsYXRpb24gaW5jcmVhc2VzIHdhbGwgc3RyZXNzIOKGkiBjb250cmFjdGlsaXR5IGV2ZW50dWFsbHkgZHJvcHMg4oaSIHRoZSBFU1BWUiBmbGF0dGVucyDihpIgRWplY3Rpb24gRnJhY3Rpb24gKEVGKSBmYWxscy4gQnkgdGhlIHRpbWUgRUYgZHJvcHMsIHNpZ25pZmljYW50IGlycmV2ZXJzaWJsZSBkYW1hZ2UgaGFzIG9jY3VycmVkLlwiIH0sXG4gICAgICAgIF1cbiAgICAgIH0sXG4gICAgICBtczoge1xuICAgICAgICBsYWJlbDogXCJNaXRyYWwgU3Rlbm9zaXNcIiwgRWVzOiAyLjUsIEVEVjogOTAsIEVhOiAyLjAsIGFscGhhOiAwLjAyLCBjb2xvcjogXCIjNzlDMEZGXCIsXG4gICAgICAgIGhpZ2hsaWdodDogXCJib3R0b21yaWdodFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiUmVzdHJpY3RlZCBmaWxsaW5nXCIsIHRleHQ6IFwiQSBzdGVub3RpYyBtaXRyYWwgdmFsdmUgbGltaXRzIGJsb29kIGZsb3cgZnJvbSB0aGUgbGVmdCBhdHJpdW0gaW50byB0aGUgdmVudHJpY2xlLiBUaGUgdmVudHJpY2xlIHJlY2VpdmVzIGxlc3MgYmxvb2QgcGVyIGJlYXQg4oaSIGl0IHVuZGVyZmlsbHMuIFRoZSBsb29wIHNocmlua3MgYW5kIHNoaWZ0cyBsZWZ0LlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJUaGUgdmVudHJpY2xlIGl0c2VsZiBpcyBub3JtYWxcIiwgdGV4dDogXCJDb250cmFjdGlsaXR5IGlzIGZpbmUsIGNvbXBsaWFuY2UgaXMgZmluZSDigJQgdGhlIHByb2JsZW0gaXMgdXBzdHJlYW0uIFRoZSB2ZW50cmljbGUganVzdCBkb2Vzbid0IGdldCBlbm91Z2ggYmxvb2QgdG8gd29yayB3aXRoLiBTdHJva2UgVm9sdW1lIChTVikgZHJvcHMgYmVjYXVzZSB0aGVyZSdzIGxlc3MgdG8gZWplY3QuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIkxWRURQIGlzIExPVyDigJQga2V5IHBvaW50XCIsIHRleHQ6IFwiVW5saWtlIG1vc3QgY2F1c2VzIG9mIHB1bG1vbmFyeSBjb25nZXN0aW9uLCB0aGUgTFYgZmlsbGluZyBwcmVzc3VyZSBpcyBhY3R1YWxseSBsb3cuIFRoZSB2ZW50cmljbGUgaXMgc3RhcnZlZCBvZiB2b2x1bWUsIG5vdCBvdmVybG9hZGVkLiBUaGlzIGRpc3Rpbmd1aXNoZXMgTVMgZnJvbSBoZWFydCBmYWlsdXJlIG9uIHRoZSBQViBsb29wLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJMQSBwcmVzc3VyZSBkcml2ZXMgdGhlIGNvbmdlc3Rpb25cIiwgdGV4dDogXCJUaGUgcGF0aG9sb2d5IGlzIGluIHRoZSBsZWZ0IGF0cml1bSDigJQgTEEgcHJlc3N1cmUgbXVzdCBiZSB2ZXJ5IGhpZ2ggdG8gZm9yY2UgYmxvb2QgdGhyb3VnaCB0aGUgc3Rlbm90aWMgdmFsdmUuIExBIGRpbGF0ZXMg4oaSIGF0cmlhbCBmaWJyaWxsYXRpb24uIFB1bG1vbmFyeSBjb25nZXN0aW9uIGNvbWVzIGZyb20gTEEgaHlwZXJ0ZW5zaW9uLCBub3QgTFYgZHlzZnVuY3Rpb24uXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIG1yOiB7XG4gICAgICAgIGxhYmVsOiBcIk1pdHJhbCBSZWd1cmdcIiwgRWVzOiAyLjUsIEVEVjogMTYwLCBFYTogMS4yLCBhbHBoYTogMC4wMiwgY29sb3I6IFwiIzNGQjk1MFwiLFxuICAgICAgICBoaWdobGlnaHQ6IFwidG9wbGVmdFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiQmFja3dhcmQgbGVhayBkdXJpbmcgc3lzdG9sZVwiLCB0ZXh0OiBcIkFuIGluY29tcGV0ZW50IG1pdHJhbCB2YWx2ZSBsZXRzIGJsb29kIHJlZ3VyZ2l0YXRlIGZyb20gdGhlIHZlbnRyaWNsZSBiYWNrIGludG8gdGhlIGxlZnQgYXRyaXVtIGR1cmluZyBjb250cmFjdGlvbi4gVGhpcyBjcmVhdGVzIGEgbG93LXJlc2lzdGFuY2UgZXNjYXBlIHJvdXRlIOKAlCB0aGUgdmVudHJpY2xlIGNhbiBlbXB0eSBtb3JlIGVhc2lseS5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiQWZ0ZXJsb2FkIChFU1ApIGRyb3BzXCIsIHRleHQ6IFwiQmVjYXVzZSBwYXJ0IG9mIHRoZSBlamVjdGlvbiBnb2VzIGludG8gdGhlIGxvdy1wcmVzc3VyZSBMQSwgdGhlIGVmZmVjdGl2ZSBhZnRlcmxvYWQgaXMgcmVkdWNlZC4gVGhlIHZlbnRyaWNsZSBkb2Vzbid0IGhhdmUgdG8gZ2VuZXJhdGUgYXMgbXVjaCBwcmVzc3VyZSB0byBlbXB0eS4gVGhlIHRvcCBvZiB0aGUgbG9vcCBkcm9wcy5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiVm9sdW1lIG92ZXJsb2FkIGZyb20gcmVndXJnaXRhbnQgcmV0dXJuXCIsIHRleHQ6IFwiVGhlIGxlYWtlZCBibG9vZCByZXR1cm5zIGZyb20gdGhlIExBIG5leHQgYmVhdCwgaW5jcmVhc2luZyBmaWxsaW5nIHZvbHVtZS4gVGhlIGxvb3Agc2hpZnRzIHJpZ2h0IGFuZCB3aWRlbnMuIFRvdGFsIFN0cm9rZSBWb2x1bWUgKFNWKSBpcyBoaWdoLCBidXQgZm9yd2FyZCBTViBpcyByZWR1Y2VkLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJUaGUgRWplY3Rpb24gRnJhY3Rpb24gKEVGKSB0cmFwXCIsIHRleHQ6IFwiRUYgYXBwZWFycyBzdXByYW5vcm1hbCAoPjYwJSkgYmVjYXVzZSBvZiB0aGUgbG93LXJlc2lzdGFuY2UgdW5sb2FkaW5nLiBCdXQgdGhpcyBpcyBtaXNsZWFkaW5nIOKAlCBpbiBzZXZlcmUgTVIsIGFuIEVGIG9mIDYwJSBhY3R1YWxseSBpbmRpY2F0ZXMgdGhlIHZlbnRyaWNsZSBpcyBhbHJlYWR5IGZhaWxpbmcuIEd1aWRlbGluZXMgdHJpZ2dlciBzdXJnZXJ5IGF0IEVGIDw2MCUuXCIgfSxcbiAgICAgICAgXVxuICAgICAgfSxcbiAgICAgIGhlbW9ycmhhZ2U6IHtcbiAgICAgICAgbGFiZWw6IFwiSGVtb3JyaGFnZVwiLCBFZXM6IDIuOCwgRURWOiA4NSwgRWE6IDIuNSwgYWxwaGE6IDAuMDIsIGNvbG9yOiBcIiNEMjk5MjJcIixcbiAgICAgICAgaGlnaGxpZ2h0OiBcImJvdHRvbXJpZ2h0XCIsXG4gICAgICAgIHN0ZXBzOiBbXG4gICAgICAgICAgeyB0aXRsZTogXCJBY3V0ZSBibG9vZCBsb3NzXCIsIHRleHQ6IFwiQmxvb2QgbG9zcyByZWR1Y2VzIGNpcmN1bGF0aW5nIHZvbHVtZSDihpIgbGVzcyB2ZW5vdXMgcmV0dXJuIOKGkiB0aGUgdmVudHJpY2xlIGZpbGxzIGxlc3MuIFRoZSBsb29wIHNsaWRlcyBsZWZ0IGFuZCBzaHJpbmtzLiBUaGlzIGlzIHByaW1hcmlseSBhIHByZWxvYWQgcHJvYmxlbS5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiU3ltcGF0aGV0aWMgY29tcGVuc2F0aW9uIGtpY2tzIGluXCIsIHRleHQ6IFwiQmFyb3JlY2VwdG9ycyBkZXRlY3QgZmFsbGluZyBwcmVzc3VyZSDihpIgc3ltcGF0aGV0aWMgYWN0aXZhdGlvbiDihpIgaGVhcnQgcmF0ZSBpbmNyZWFzZXMsIGNvbnRyYWN0aWxpdHkgaW1wcm92ZXMgc2xpZ2h0bHksIGFuZCBwZXJpcGhlcmFsIHZlc3NlbHMgY29uc3RyaWN0IHRvIG1haW50YWluIGJsb29kIHByZXNzdXJlLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJTbWFsbGVyIGxvb3AsIGxvd2VyIFN0cm9rZSBWb2x1bWUgKFNWKVwiLCB0ZXh0OiBcIkRlc3BpdGUgY29tcGVuc2F0aW9uLCBTViBkcm9wcyBzaWduaWZpY2FudGx5LiBUaGUgbG9vcCBpcyBzbWFsbCBhbmQgc2hpZnRlZCBsZWZ0LiBUaGUgdmVudHJpY2xlIGlzIHdvcmtpbmcgZmluZSDigJQgaXQganVzdCBkb2Vzbid0IGhhdmUgZW5vdWdoIGJsb29kIHRvIHB1bXAuXCIgfSxcbiAgICAgICAgICB7IHRpdGxlOiBcIlRhY2h5Y2FyZGlhIGlzIHRoZSBlYXJseSBzaWduXCIsIHRleHQ6IFwiQ2FyZGlhYyBvdXRwdXQgPSBTViDDlyBoZWFydCByYXRlLiBXaXRoIHJlZHVjZWQgU1YsIGhlYXJ0IHJhdGUgbXVzdCByaXNlIHRvIG1haW50YWluIG91dHB1dC4gVGFjaHljYXJkaWEgYXBwZWFycyBCRUZPUkUgaHlwb3RlbnNpb24g4oCUIGJ5IHRoZSB0aW1lIGJsb29kIHByZXNzdXJlIGRyb3BzLCA+MzAlIG9mIGJsb29kIHZvbHVtZSBpcyBsb3N0LlwiIH0sXG4gICAgICAgIF1cbiAgICAgIH0sXG4gICAgICBmbHVpZDoge1xuICAgICAgICBsYWJlbDogXCJJViBGbHVpZFwiLCBFZXM6IDIuNSwgRURWOiAxNTAsIEVhOiAyLjAsIGFscGhhOiAwLjAyLCBjb2xvcjogXCIjMUY2RkVCXCIsXG4gICAgICAgIGhpZ2hsaWdodDogXCJib3R0b21yaWdodFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiVm9sdW1lIGV4cGFuc2lvblwiLCB0ZXh0OiBcIklWIGZsdWlkIGluY3JlYXNlcyBjaXJjdWxhdGluZyB2b2x1bWUg4oaSIG1vcmUgdmVub3VzIHJldHVybiDihpIgdGhlIHZlbnRyaWNsZSBmaWxscyBtb3JlLiBUaGUgbG9vcCBzbGlkZXMgcmlnaHQgYWxvbmcgdGhlIHNhbWUgRVNQVlIuIENvbnRyYWN0aWxpdHkgYW5kIGFmdGVybG9hZCBkb24ndCBjaGFuZ2Ug4oCUIHRoaXMgaXMgYSBwdXJlIHByZWxvYWQgZWZmZWN0LlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJTdGFybGluZyBtZWNoYW5pc20gaW5jcmVhc2VzIFNWXCIsIHRleHQ6IFwiR3JlYXRlciBmaWxsaW5nIHN0cmV0Y2gg4oaSIG1vcmUgZm9yY2VmdWwgY29udHJhY3Rpb24g4oaSIFN0cm9rZSBWb2x1bWUgKFNWKSBpbmNyZWFzZXMuIFRoZSBsb29wIGdldHMgd2lkZXIuIFRoZSByaWdodCBzaWRlIHNoaWZ0cyByaWdodCB3aGlsZSB0aGUgbGVmdCBzaWRlIGJhcmVseSBtb3Zlcy5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiUHJlbG9hZCB2cy4gaW5vdHJvcHkgZGlzdGluY3Rpb25cIiwgdGV4dDogXCJDb21wYXJlIHdpdGggaW5vdHJvcGVzOiBmbHVpZCBzaGlmdHMgdGhlIFJJR0hUIHNpZGUgb2YgdGhlIGxvb3AgKG1vcmUgZmlsbGluZykuIElub3Ryb3BlcyBzaGlmdCB0aGUgTEVGVCBzaWRlIChiZXR0ZXIgZW1wdHlpbmcpLiBCb3RoIGluY3JlYXNlIFNWLCBidXQgYnkgbW92aW5nIG9wcG9zaXRlIHNpZGVzIG9mIHRoZSBsb29wLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJGbHVpZCByZXNwb25zaXZlbmVzcyBoYXMgbGltaXRzXCIsIHRleHQ6IFwiT24gdGhlIHN0ZWVwIHBhcnQgb2YgdGhlIGNvbXBsaWFuY2UgY3VydmUsIGZsdWlkIGhlbHBzLiBCdXQgcGFzdCBhIGNlcnRhaW4gcG9pbnQsIG1vcmUgZmx1aWQganVzdCByYWlzZXMgZmlsbGluZyBwcmVzc3VyZSB3aXRob3V0IGluY3JlYXNpbmcgU1Yg4oaSIHB1bG1vbmFyeSBlZGVtYS4gVGhpcyBpcyB3aHkgcGFzc2l2ZSBsZWcgcmFpc2UgYW5kIFNWViB0ZXN0aW5nIG1hdHRlci5cIiB9LFxuICAgICAgICBdXG4gICAgICB9LFxuICAgICAgaW5vdHJvcGU6IHtcbiAgICAgICAgbGFiZWw6IFwiSW5vdHJvcGVcIiwgRWVzOiA0LjAsIEVEVjogMTIwLCBFYTogMi4wLCBhbHBoYTogMC4wMiwgY29sb3I6IFwiI0JDOENGRlwiLFxuICAgICAgICBoaWdobGlnaHQ6IFwidG9wbGVmdFwiLFxuICAgICAgICBzdGVwczogW1xuICAgICAgICAgIHsgdGl0bGU6IFwiQ29udHJhY3RpbGl0eSBpbmNyZWFzZXNcIiwgdGV4dDogXCJEb2J1dGFtaW5lICjOsjEgYWdvbmlzdCkgc3RyZW5ndGhlbnMgY29udHJhY3Rpb24uIFRoZSBFU1BWUiByb3RhdGVzIHVwd2FyZCDigJQgdGhlIGNvbnRyYWN0aWxlIGNlaWxpbmcgcmlzZXMuIFRoZSB2ZW50cmljbGUgY2FuIG5vdyBzcXVlZXplIG1vcmUgY29tcGxldGVseSBhdCBhbnkgZ2l2ZW4gdm9sdW1lLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJCZXR0ZXIgZW1wdHlpbmcg4oaSIHdpZGVyIGxvb3BcIiwgdGV4dDogXCJUaGUgdmVudHJpY2xlIGVtcHRpZXMgbW9yZSBjb21wbGV0ZWx5IOKGkiB0aGUgbGVmdCBzaWRlIG9mIHRoZSBsb29wIHNoaWZ0cyBsZWZ0LiBGaWxsaW5nIHZvbHVtZSBzdGF5cyByb3VnaGx5IHRoZSBzYW1lLiBTdHJva2UgVm9sdW1lIChTVikgaW5jcmVhc2VzIGJlY2F1c2UgdGhlIGxvb3AgZ2V0cyBXSURFUiwgbm90IGp1c3Qgc2hpZnRlZC5cIiB9LFxuICAgICAgICAgIHsgdGl0bGU6IFwiQ29tcGFyZTogcHJlbG9hZCB2cy4gY29udHJhY3RpbGl0eVwiLCB0ZXh0OiBcIklWIEZsdWlkOiByaWdodCBzaWRlIHNoaWZ0cyByaWdodCAobW9yZSBmaWxsaW5nKSwgbGVmdCBzaWRlIHN0YXlzIOKGkiB3aWRlci4gSW5vdHJvcGU6IGxlZnQgc2lkZSBzaGlmdHMgbGVmdCAoYmV0dGVyIGVtcHR5aW5nKSwgcmlnaHQgc2lkZSBzdGF5cyDihpIgd2lkZXIuIEJvdGggaW5jcmVhc2UgU1YgYnkgbW92aW5nIE9QUE9TSVRFIHNpZGVzIG9mIHRoZSBsb29wLlwiIH0sXG4gICAgICAgICAgeyB0aXRsZTogXCJDbGluaWNhbCB0cmFkZW9mZlwiLCB0ZXh0OiBcIkVqZWN0aW9uIEZyYWN0aW9uIChFRikgaW1wcm92ZXMuIEJ1dCBpbm90cm9wZXMgaW5jcmVhc2UgbXlvY2FyZGlhbCBveHlnZW4gZGVtYW5kIGFuZCBhcnJoeXRobWlhIHJpc2suIFRoZXkncmUgYSBicmlkZ2Ug4oCUIHRvIHN1cmdlcnksIHJlY292ZXJ5LCBvciBhIHZlbnRyaWN1bGFyIGFzc2lzdCBkZXZpY2Ug4oCUIG5vdCBhIGxvbmctdGVybSBzb2x1dGlvbi5cIiB9LFxuICAgICAgICBdXG4gICAgICB9LFxuICAgIH07XG5cbiAgICBjb25zdCBOT1JNID0gU0Mubm9ybWFsO1xuICAgIGNvbnN0IG5vcm1TdCA9IGNvbXB1dGVTdGF0ZShOT1JNLkVlcywgTk9STS5FRFYsIE5PUk0uRWEsIE5PUk0uYWxwaGEpO1xuXG4gICAgY29uc3QgVyA9IDU0MCwgSCA9IDQyMDtcbiAgICBjb25zdCBQRCA9IHsgdDogMjIsIHI6IDIyLCBiOiA1MiwgbDogNTYgfTtcbiAgICBjb25zdCBHVyA9IFcgLSBQRC5sIC0gUEQuciwgR0ggPSBIIC0gUEQudCAtIFBELmI7XG4gICAgY29uc3QgVk1BWCA9IDIyMCwgUE1BWCA9IDI0MDtcblxuICAgIGZ1bmN0aW9uIHZYKHYpIHsgcmV0dXJuIFBELmwgKyAodiAvIFZNQVgpICogR1c7IH1cbiAgICBmdW5jdGlvbiBwWShwKSB7IHJldHVybiBQRC50ICsgR0ggLSAoTWF0aC5tYXgoMCwgTWF0aC5taW4ocCwgUE1BWCkpIC8gUE1BWCkgKiBHSDsgfVxuXG4gICAgZnVuY3Rpb24gbWFrZUxvb3Aoc3QsIEVlcywgYWxwaGEpIHtcbiAgICAgIGNvbnN0IHsgRURWLCBFU1YsIEVTUCwgTFZFRFAsIGVzdlAwIH0gPSBzdDtcbiAgICAgIGNvbnN0IHB0cyA9IFtdO1xuICAgICAgZm9yIChsZXQgaSA9IDA7IGkgPD0gMjA7IGkrKykge1xuICAgICAgICBjb25zdCB2ID0gRVNWICsgKEVEViAtIEVTVikgKiAoaSAvIDIwKTtcbiAgICAgICAgY29uc3QgcCA9IGVkcHZyKHYsIGFscGhhKTtcbiAgICAgICAgcHRzLnB1c2goW3YsIE1hdGgubWluKHAsIDYwKV0pO1xuICAgICAgfVxuICAgICAgZm9yIChsZXQgaSA9IDA7IGkgPD0gMTI7IGkrKykge1xuICAgICAgICBjb25zdCBmID0gaSAvIDEyO1xuICAgICAgICBjb25zdCBwID0gTWF0aC5taW4oTFZFRFAsIDYwKSArIChFU1AgLSBNYXRoLm1pbihMVkVEUCwgNjApKSAqIGY7XG4gICAgICAgIHB0cy5wdXNoKFtFRFYsIHBdKTtcbiAgICAgIH1cbiAgICAgIGZvciAobGV0IGkgPSAwOyBpIDw9IDIwOyBpKyspIHtcbiAgICAgICAgY29uc3QgZiA9IGkgLyAyMDtcbiAgICAgICAgY29uc3QgdiA9IEVEViAtIChFRFYgLSBFU1YpICogZjtcbiAgICAgICAgY29uc3Qgc3RyYWlnaHRQID0gRVNQO1xuICAgICAgICBjb25zdCBwZWFrQm93ID0gODtcbiAgICAgICAgY29uc3QgYm93ID0gcGVha0JvdyAqIE1hdGguc2luKGYgKiBNYXRoLlBJKTtcbiAgICAgICAgY29uc3QgZXNwdnJBdFYgPSBlc3B2cih2LCBFZXMpO1xuICAgICAgICBjb25zdCBwID0gTWF0aC5taW4oc3RyYWlnaHRQICsgYm93LCBlc3B2ckF0ViArIDUpO1xuICAgICAgICBwdHMucHVzaChbdiwgTWF0aC5tYXgocCwgRVNQIC0gMTUpXSk7XG4gICAgICB9XG4gICAgICBmb3IgKGxldCBpID0gMDsgaSA8PSAxMjsgaSsrKSB7XG4gICAgICAgIGNvbnN0IGYgPSBpIC8gMTI7XG4gICAgICAgIGNvbnN0IHAgPSBFU1AgLSAoRVNQIC0gTWF0aC5taW4oZXN2UDAsIDMwKSkgKiBmO1xuICAgICAgICBwdHMucHVzaChbRVNWLCBwXSk7XG4gICAgICB9XG4gICAgICByZXR1cm4gcHRzLm1hcCgoW3YsIHBdKSA9PiBgJHt2WCh2KS50b0ZpeGVkKDEpfSwke3BZKHApLnRvRml4ZWQoMSl9YCkuam9pbihcIiBcIik7XG4gICAgfVxuXG4gICAgZnVuY3Rpb24gbWFrZUN1cnZlKHR5cGUsIHBhcmFtKSB7XG4gICAgICBjb25zdCBwdHMgPSBbXTtcbiAgICAgIGZvciAobGV0IHYgPSAodHlwZSA9PT0gXCJlc3B2clwiID8gVjAgOiAwKTsgdiA8PSAyMTA7IHYgKz0gMikge1xuICAgICAgICBjb25zdCBwID0gdHlwZSA9PT0gXCJlc3B2clwiID8gZXNwdnIodiwgcGFyYW0pIDogZWRwdnIodiwgcGFyYW0pO1xuICAgICAgICBpZiAocCA+IFBNQVggKyAxMCkgYnJlYWs7XG4gICAgICAgIGlmICh0eXBlID09PSBcImVkcHZyXCIgJiYgcCA+IDY1KSBicmVhaztcbiAgICAgICAgcHRzLnB1c2goYCR7dlgodikudG9GaXhlZCgxKX0sJHtwWShwKS50b0ZpeGVkKDEpfWApO1xuICAgICAgfVxuICAgICAgcmV0dXJuIHB0cy5qb2luKFwiIFwiKTtcbiAgICB9XG5cbiAgICBmdW5jdGlvbiBEKHsgdmFsLCByZWZlcmVuY2UgfSkge1xuICAgICAgY29uc3QgZCA9IHZhbCAtIHJlZmVyZW5jZTtcbiAgICAgIGlmIChNYXRoLmFicyhkKSA8IDAuNSkgcmV0dXJuIG51bGw7XG4gICAgICByZXR1cm4gPHNwYW4gc3R5bGU9e3sgZm9udFNpemU6IDksIG1hcmdpbkxlZnQ6IDIsIGNvbG9yOiBkID4gMCA/IFwiI0Y4NTE0OVwiIDogXCIjNThBNkZGXCIsIGZvbnRXZWlnaHQ6IDgwMCB9fT57ZCA+IDAgPyBcIuKWslwiIDogXCLilrxcIn08L3NwYW4+O1xuICAgIH1cblxuICAgIGZ1bmN0aW9uIGdldEhMKGtleSwgcHYpIHtcbiAgICAgIGlmICgha2V5KSByZXR1cm4gbnVsbDtcbiAgICAgIGNvbnN0IG0gPSB7XG4gICAgICAgIHRvcGxlZnQ6IHsgY3g6IHZYKHB2LkVTViksIGN5OiBwWShwdi5FU1ApLCBsYWJlbDogXCJFbmQtc3lzdG9saWMgcG9pbnRcIiB9LFxuICAgICAgICBib3R0b21yaWdodDogeyBjeDogdlgocHYuRURWKSwgY3k6IHBZKE1hdGgubWluKHB2LkxWRURQLCA1MCkpLCBsYWJlbDogXCJQcmVsb2FkIChFRFYpXCIgfSxcbiAgICAgICAgdG9wcmlnaHQ6IHsgY3g6IHZYKHB2LkVEViksIGN5OiBwWShwdi5FU1ApLCBsYWJlbDogXCJQZWFrIHByZXNzdXJlXCIgfSxcbiAgICAgIH07XG4gICAgICByZXR1cm4gbVtrZXldIHx8IG51bGw7XG4gICAgfVxuXG4gICAgZnVuY3Rpb24gUFZMb29wKCkge1xuICAgICAgY29uc3QgW3NjS2V5LCBzZXRTY0tleV0gPSB1c2VTdGF0ZShcIm5vcm1hbFwiKTtcbiAgICAgIGNvbnN0IFtzdGVwLCBzZXRTdGVwXSA9IHVzZVN0YXRlKDApO1xuICAgICAgY29uc3QgW3NsLCBzZXRTbF0gPSB1c2VTdGF0ZSh7IEVlczogMi41LCBFRFY6IDEyMCwgRWE6IDIuMCwgYWxwaGE6IDAuMDIsIF9lYU1vdmVkOiBmYWxzZSB9KTtcbiAgICAgIGNvbnN0IFttb2RlLCBzZXRNb2RlXSA9IHVzZVN0YXRlKFwic2NlbmFyaW9cIik7XG5cbiAgICAgIGNvbnN0IHNjID0gU0Nbc2NLZXldO1xuICAgICAgY29uc3QgcHYgPSB1c2VNZW1vKCgpID0+IHtcbiAgICAgICAgaWYgKG1vZGUgPT09IFwic2NlbmFyaW9cIikgcmV0dXJuIGNvbXB1dGVTdGF0ZShzYy5FZXMsIHNjLkVEViwgc2MuRWEsIHNjLmFscGhhKTtcbiAgICAgICAgaWYgKHNsLl9lYU1vdmVkKSByZXR1cm4gY29tcHV0ZVN0YXRlKHNsLkVlcywgc2wuRURWLCBzbC5FYSwgc2wuYWxwaGEpO1xuICAgICAgICByZXR1cm4gY29tcHV0ZVBpbm5lZChzbC5FZXMsIHNsLkVEViwgc2wuYWxwaGEsIG5vcm1TdC5FU1AsIG5vcm1TdC5MVkVEUCk7XG4gICAgICB9LCBbbW9kZSwgc2MsIHNsXSk7XG4gICAgICBjb25zdCBwbSA9IG1vZGUgPT09IFwic2NlbmFyaW9cIiA/IHNjIDogeyBFZXM6IHNsLkVlcywgRURWOiBwdi5FRFYsIEVhOiBzbC5FYSwgYWxwaGE6IHNsLmFscGhhIH07XG5cbiAgICAgIGNvbnN0IGxvb3AgPSB1c2VNZW1vKCgpID0+IG1ha2VMb29wKHB2LCBwbS5FZXMsIHBtLmFscGhhKSwgW3B2LCBwbS5FZXMsIHBtLmFscGhhXSk7XG4gICAgICBjb25zdCBuTG9vcCA9IHVzZU1lbW8oKCkgPT4gbWFrZUxvb3Aobm9ybVN0LCBOT1JNLkVlcywgTk9STS5hbHBoYSksIFtdKTtcbiAgICAgIGNvbnN0IGVzcEwgPSB1c2VNZW1vKCgpID0+IG1ha2VDdXJ2ZShcImVzcHZyXCIsIHBtLkVlcyksIFtwbS5FZXNdKTtcbiAgICAgIGNvbnN0IGVkcEwgPSB1c2VNZW1vKCgpID0+IG1ha2VDdXJ2ZShcImVkcHZyXCIsIHBtLmFscGhhKSwgW3BtLmFscGhhXSk7XG4gICAgICBjb25zdCBuRXNwTCA9IHVzZU1lbW8oKCkgPT4gbWFrZUN1cnZlKFwiZXNwdnJcIiwgTk9STS5FZXMpLCBbXSk7XG4gICAgICBjb25zdCBuRWRwTCA9IHVzZU1lbW8oKCkgPT4gbWFrZUN1cnZlKFwiZWRwdnJcIiwgTk9STS5hbHBoYSksIFtdKTtcblxuICAgICAgY29uc3QgY29sID0gbW9kZSA9PT0gXCJzY2VuYXJpb1wiID8gc2MuY29sb3IgOiBcIiM1OEE2RkZcIjtcbiAgICAgIGNvbnN0IHNob3dSZWYgPSBtb2RlID09PSBcInNjZW5hcmlvXCIgPyBzY0tleSAhPT0gXCJub3JtYWxcIiA6IHRydWU7XG4gICAgICBjb25zdCBzdGVwcyA9IHNjLnN0ZXBzO1xuICAgICAgY29uc3QgblN0ZXBzID0gc3RlcHMubGVuZ3RoO1xuICAgICAgY29uc3QgaGwgPSBtb2RlID09PSBcInNjZW5hcmlvXCIgPyBnZXRITChzYy5oaWdobGlnaHQsIHB2KSA6IG51bGw7XG5cbiAgICAgIGNvbnN0IHBpY2tTYyA9IHVzZUNhbGxiYWNrKChrKSA9PiB7IHNldFNjS2V5KGspOyBzZXRTdGVwKDApOyBzZXRNb2RlKFwic2NlbmFyaW9cIik7IH0sIFtdKTtcbiAgICAgIFxuICAgICAgY29uc3Qgc2xpZGUgPSB1c2VDYWxsYmFjaygoaywgdikgPT4ge1xuICAgICAgICBpZiAobW9kZSA9PT0gXCJzY2VuYXJpb1wiKSB7XG4gICAgICAgICAgY29uc3Qgc25hcCA9IFNDW3NjS2V5XTtcbiAgICAgICAgICBzZXRTbCh7IEVlczogc25hcC5FZXMsIEVEVjogc25hcC5FRFYsIEVhOiBzbmFwLkVhLCBhbHBoYTogc25hcC5hbHBoYSwgX2VhTW92ZWQ6IGsgPT09IFwiRWFcIiwgW2tdOiB2IH0pO1xuICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgIHNldFNsKHByZXYgPT4gKHsgLi4ucHJldiwgX2VhTW92ZWQ6IGsgPT09IFwiRWFcIiA/IHRydWUgOiBwcmV2Ll9lYU1vdmVkLCBba106IHYgfSkpO1xuICAgICAgICB9XG4gICAgICAgIHNldE1vZGUoXCJtYW51YWxcIik7XG4gICAgICB9LCBbbW9kZSwgc2NLZXldKTtcblxuICAgICAgY29uc3QgdlRpY2tzID0gWzAsIDUwLCAxMDAsIDE1MCwgMjAwXTtcbiAgICAgIGNvbnN0IHBUaWNrcyA9IFswLCA1MCwgMTAwLCAxNTAsIDIwMF07XG4gICAgICBjb25zdCBkaXNwTFZFRFAgPSBNYXRoLm1pbihwdi5MVkVEUCwgNTApO1xuXG4gICAgICBjb25zdCBncm91cHMgPSBbXG4gICAgICAgIHsgbGFiZWw6IFwiQ29uZGl0aW9uc1wiLCBrZXlzOiBbXCJub3JtYWxcIiwgXCJoZnJlZlwiLCBcImhmcGVmXCJdIH0sXG4gICAgICAgIHsgbGFiZWw6IFwiVmFsdnVsYXJcIiwga2V5czogW1wiYXNcIiwgXCJhclwiLCBcIm1zXCIsIFwibXJcIl0gfSxcbiAgICAgICAgeyBsYWJlbDogXCJBY3V0ZVwiLCBrZXlzOiBbXCJoZW1vcnJoYWdlXCIsIFwiZmx1aWRcIiwgXCJpbm90cm9wZVwiXSB9LFxuICAgICAgXTtcblxuICAgICAgcmV0dXJuIChcbiAgICAgICAgPGRpdiBzdHlsZT17eyBiYWNrZ3JvdW5kOiBcIiMwRDExMTdcIiwgY29sb3I6IFwiI0M5RDFEOVwiLCBtaW5IZWlnaHQ6IFwiMTAwdmhcIiwgZm9udEZhbWlseTogXCInSmV0QnJhaW5zIE1vbm8nLCdTRiBNb25vJywnRmlyYSBDb2RlJyxtb25vc3BhY2VcIiwgcGFkZGluZzogXCI4cHggOHB4IDIwcHhcIiB9fT5cbiAgICAgICAgICA8ZGl2IHN0eWxlPXt7IG1heFdpZHRoOiA1ODAsIG1hcmdpbjogXCIwIGF1dG9cIiB9fT5cblxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyB0ZXh0QWxpZ246IFwiY2VudGVyXCIsIG1hcmdpbkJvdHRvbTogOCB9fT5cbiAgICAgICAgICAgICAgPGgxIHN0eWxlPXt7IGZvbnRTaXplOiAxNSwgZm9udFdlaWdodDogNzAwLCBjb2xvcjogXCIjRTZFREYzXCIsIG1hcmdpbjogMCwgbGV0dGVyU3BhY2luZzogMS41LCB0ZXh0VHJhbnNmb3JtOiBcInVwcGVyY2FzZVwiIH19PlByZXNzdXJl4oCTVm9sdW1lIExvb3A8L2gxPlxuICAgICAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGZvbnRTaXplOiA5LCBjb2xvcjogXCIjNDg0RjU4XCIsIG1hcmdpblRvcDogMiB9fT5FU1BWUiAmIEVEUFZSIGNvbnRyb2wgdGhlIGJvdW5kYXJpZXMgwrcgVGhlIGxvb3AgaXMgZW1lcmdlbnQ8L2Rpdj5cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBmbGV4RGlyZWN0aW9uOiBcImNvbHVtblwiLCBnYXA6IDMsIG1hcmdpbkJvdHRvbTogOCB9fT5cbiAgICAgICAgICAgICAge2dyb3Vwcy5tYXAoZyA9PiAoXG4gICAgICAgICAgICAgICAgPGRpdiBrZXk9e2cubGFiZWx9IHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLCBnYXA6IDQsIGZsZXhXcmFwOiBcIndyYXBcIiB9fT5cbiAgICAgICAgICAgICAgICAgIDxzcGFuIHN0eWxlPXt7IGZvbnRTaXplOiA4LCBjb2xvcjogXCIjNDg0RjU4XCIsIHdpZHRoOiA2MiwgdGV4dEFsaWduOiBcInJpZ2h0XCIsIGZsZXhTaHJpbms6IDAsIHRleHRUcmFuc2Zvcm06IFwidXBwZXJjYXNlXCIsIGxldHRlclNwYWNpbmc6IDAuNSB9fT57Zy5sYWJlbH08L3NwYW4+XG4gICAgICAgICAgICAgICAgICB7Zy5rZXlzLm1hcChrID0+IHtcbiAgICAgICAgICAgICAgICAgICAgY29uc3QgcyA9IFNDW2tdOyBjb25zdCBvbiA9IHNjS2V5ID09PSBrICYmIG1vZGUgPT09IFwic2NlbmFyaW9cIjtcbiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIDxidXR0b24ga2V5PXtrfSBvbkNsaWNrPXsoKSA9PiBwaWNrU2Moayl9IHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgcGFkZGluZzogXCIzcHggOXB4XCIsIGZvbnRTaXplOiAxMCwgZm9udFdlaWdodDogb24gPyA3MDAgOiA0MDAsXG4gICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogb24gPyBzLmNvbG9yICsgXCIyMFwiIDogXCJ0cmFuc3BhcmVudFwiLCBjb2xvcjogb24gPyBzLmNvbG9yIDogXCIjNkU3NjgxXCIsXG4gICAgICAgICAgICAgICAgICAgICAgYm9yZGVyOiBgMXB4IHNvbGlkICR7b24gPyBzLmNvbG9yICsgXCI1NVwiIDogXCIjMjEyNjJEXCJ9YCxcbiAgICAgICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IDMsIGN1cnNvcjogXCJwb2ludGVyXCIsIGZvbnRGYW1pbHk6IFwiaW5oZXJpdFwiLCB0cmFuc2l0aW9uOiBcImFsbCAwLjE1c1wiLFxuICAgICAgICAgICAgICAgICAgICB9fT57cy5sYWJlbH08L2J1dHRvbj47XG4gICAgICAgICAgICAgICAgICB9KX1cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBiYWNrZ3JvdW5kOiBcIiMwRDExMTdcIiwgYm9yZGVyOiBcIjFweCBzb2xpZCAjMjEyNjJEXCIsIGJvcmRlclJhZGl1czogNiwgcGFkZGluZzogNCwgcG9zaXRpb246IFwicmVsYXRpdmVcIiB9fT5cbiAgICAgICAgICAgICAgPHN2ZyB2aWV3Qm94PXtgMCAwICR7V30gJHtIfWB9IHN0eWxlPXt7IHdpZHRoOiBcIjEwMCVcIiwgaGVpZ2h0OiBcImF1dG9cIiwgZGlzcGxheTogXCJibG9ja1wiIH19PlxuICAgICAgICAgICAgICAgIHt2VGlja3MubWFwKHYgPT4gPGxpbmUga2V5PXtgdmcke3Z9YH0geDE9e3ZYKHYpfSB5MT17UEQudH0geDI9e3ZYKHYpfSB5Mj17UEQudCArIEdIfSBzdHJva2U9XCIjMTYxQjIyXCIgc3Ryb2tlV2lkdGg9ezF9IC8+KX1cbiAgICAgICAgICAgICAgICB7cFRpY2tzLm1hcChwID0+IDxsaW5lIGtleT17YHBnJHtwfWB9IHgxPXtQRC5sfSB5MT17cFkocCl9IHgyPXtQRC5sICsgR1d9IHkyPXtwWShwKX0gc3Ryb2tlPVwiIzE2MUIyMlwiIHN0cm9rZVdpZHRoPXsxfSAvPil9XG4gICAgICAgICAgICAgICAgPGxpbmUgeDE9e1BELmx9IHkxPXtQRC50fSB4Mj17UEQubH0geTI9e1BELnQgKyBHSH0gc3Ryb2tlPVwiIzMwMzYzRFwiIHN0cm9rZVdpZHRoPXsxLjV9IC8+XG4gICAgICAgICAgICAgICAgPGxpbmUgeDE9e1BELmx9IHkxPXtQRC50ICsgR0h9IHgyPXtQRC5sICsgR1d9IHkyPXtQRC50ICsgR0h9IHN0cm9rZT1cIiMzMDM2M0RcIiBzdHJva2VXaWR0aD17MS41fSAvPlxuICAgICAgICAgICAgICAgIHt2VGlja3MubWFwKHYgPT4gPHRleHQga2V5PXtgdmwke3Z9YH0geD17dlgodil9IHk9e1BELnQgKyBHSCArIDE2fSB0ZXh0QW5jaG9yPVwibWlkZGxlXCIgZmlsbD1cIiM0ODRGNThcIiBmb250U2l6ZT17MTB9IGZvbnRGYW1pbHk9XCJpbmhlcml0XCI+e3Z9PC90ZXh0Pil9XG4gICAgICAgICAgICAgICAge3BUaWNrcy5tYXAocCA9PiA8dGV4dCBrZXk9e2BwbCR7cH1gfSB4PXtQRC5sIC0gOH0geT17cFkocCkgKyA0fSB0ZXh0QW5jaG9yPVwiZW5kXCIgZmlsbD1cIiM0ODRGNThcIiBmb250U2l6ZT17MTB9IGZvbnRGYW1pbHk9XCJpbmhlcml0XCI+e3B9PC90ZXh0Pil9XG4gICAgICAgICAgICAgICAgPHRleHQgeD17UEQubCArIEdXIC8gMn0geT17SCAtIDR9IHRleHRBbmNob3I9XCJtaWRkbGVcIiBmaWxsPVwiIzZFNzY4MVwiIGZvbnRTaXplPXsxMX0gZm9udEZhbWlseT1cImluaGVyaXRcIj5Wb2x1bWUgKG1MKTwvdGV4dD5cbiAgICAgICAgICAgICAgICA8dGV4dCB4PXsxNH0geT17UEQudCArIEdIIC8gMn0gdGV4dEFuY2hvcj1cIm1pZGRsZVwiIGZpbGw9XCIjNkU3NjgxXCIgZm9udFNpemU9ezExfSBmb250RmFtaWx5PVwiaW5oZXJpdFwiIHRyYW5zZm9ybT17YHJvdGF0ZSgtOTAsMTQsJHtQRC50ICsgR0ggLyAyfSlgfT5QcmVzc3VyZSAobW1IZyk8L3RleHQ+XG5cbiAgICAgICAgICAgICAgICB7c2hvd1JlZiAmJiA8PlxuICAgICAgICAgICAgICAgICAgPHBvbHlsaW5lIHBvaW50cz17bkVzcEx9IGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiIzhCOTQ5RVwiIHN0cm9rZVdpZHRoPXsxLjJ9IHN0cm9rZURhc2hhcnJheT1cIjUsM1wiIG9wYWNpdHk9ezAuNX0gLz5cbiAgICAgICAgICAgICAgICAgIDxwb2x5bGluZSBwb2ludHM9e25FZHBMfSBmaWxsPVwibm9uZVwiIHN0cm9rZT1cIiM4Qjk0OUVcIiBzdHJva2VXaWR0aD17MS4yfSBzdHJva2VEYXNoYXJyYXk9XCI1LDNcIiBvcGFjaXR5PXswLjV9IC8+XG4gICAgICAgICAgICAgICAgICA8cG9seWdvbiBwb2ludHM9e25Mb29wfSBmaWxsPVwiIzhCOTQ5RVwiIGZpbGxPcGFjaXR5PXswLjA2fSBzdHJva2U9XCIjOEI5NDlFXCIgc3Ryb2tlV2lkdGg9ezEuOH0gc3Ryb2tlRGFzaGFycmF5PVwiNCwzXCIgb3BhY2l0eT17MC41NX0gLz5cbiAgICAgICAgICAgICAgICAgIDx0ZXh0IHg9e3ZYKG5vcm1TdC5FRFYpICsgNX0geT17cFkobm9ybVN0LkVTUCkgKyAxNH0gZmlsbD1cIiM4Qjk0OUVcIiBmb250U2l6ZT17MTB9IGZvbnRGYW1pbHk9XCJpbmhlcml0XCIgZm9udFdlaWdodD17NjAwfSBvcGFjaXR5PXswLjd9Pk5vcm1hbDwvdGV4dD5cbiAgICAgICAgICAgICAgICA8Lz59XG5cbiAgICAgICAgICAgICAgICA8cG9seWxpbmUgcG9pbnRzPXtlc3BMfSBmaWxsPVwibm9uZVwiIHN0cm9rZT17Y29sfSBzdHJva2VXaWR0aD17MS41fSBvcGFjaXR5PXswLjQ1fSBzdHJva2VEYXNoYXJyYXk9XCI2LDNcIiAvPlxuICAgICAgICAgICAgICAgIDxwb2x5bGluZSBwb2ludHM9e2VkcEx9IGZpbGw9XCJub25lXCIgc3Ryb2tlPXtjb2x9IHN0cm9rZVdpZHRoPXsxLjV9IG9wYWNpdHk9ezAuNDV9IHN0cm9rZURhc2hhcnJheT1cIjYsM1wiIC8+XG5cbiAgICAgICAgICAgICAgICB7KCgpID0+IHsgY29uc3QgbHYgPSBWMCArIE1hdGgubWluKDkwIC8gcG0uRWVzLCA0NSksIGxwID0gZXNwdnIobHYsIHBtLkVlcyk7IHJldHVybiBscCA+IDEwICYmIGxwIDwgUE1BWCAtIDIwID8gPHRleHQgeD17dlgobHYpICsgM30geT17cFkobHApIC0gNX0gZmlsbD17Y29sfSBmb250U2l6ZT17OX0gb3BhY2l0eT17MC42fSBmb250RmFtaWx5PVwiaW5oZXJpdFwiIGZvbnRXZWlnaHQ9ezYwMH0+RVNQVlI8L3RleHQ+IDogbnVsbDsgfSkoKX1cbiAgICAgICAgICAgICAgICB7KCgpID0+IHsgbGV0IHYyID0gMTcwLCBwMiA9IGVkcHZyKHYyLCBwbS5hbHBoYSk7IGlmIChwMiA+IDUwKSB7IHYyID0gMTQwOyBwMiA9IGVkcHZyKHYyLCBwbS5hbHBoYSk7IH0gaWYgKHAyID4gNTApIHsgdjIgPSAxMTA7IHAyID0gZWRwdnIodjIsIHBtLmFscGhhKTsgfSByZXR1cm4gcDIgPiAxICYmIHAyIDwgNjAgPyA8dGV4dCB4PXt2WCh2MikgKyAzfSB5PXtwWShwMikgLSA1fSBmaWxsPXtjb2x9IGZvbnRTaXplPXs5fSBvcGFjaXR5PXswLjZ9IGZvbnRGYW1pbHk9XCJpbmhlcml0XCIgZm9udFdlaWdodD17NjAwfT5FRFBWUjwvdGV4dD4gOiBudWxsOyB9KSgpfVxuXG4gICAgICAgICAgICAgICAgPGxpbmUgeDE9e3ZYKHB2LkVEVil9IHkxPXtwWSgwKX0geDI9e3ZYKHB2LkVTVil9IHkyPXtwWShwdi5FU1ApfSBzdHJva2U9XCIjRTNCMzQxXCIgc3Ryb2tlV2lkdGg9ezEuMn0gc3Ryb2tlRGFzaGFycmF5PVwiMywzXCIgb3BhY2l0eT17MC41fSAvPlxuICAgICAgICAgICAgICAgIDx0ZXh0IHg9e3ZYKHB2LkVEVikgKyA0fSB5PXtwWSgyKX0gZmlsbD1cIiNFM0IzNDFcIiBmb250U2l6ZT17OH0gb3BhY2l0eT17MC41NX0gZm9udEZhbWlseT1cImluaGVyaXRcIj5FYTwvdGV4dD5cblxuICAgICAgICAgICAgICAgIDxwb2x5Z29uIHBvaW50cz17bG9vcH0gZmlsbD17Y29sfSBmaWxsT3BhY2l0eT17MC4xfSBzdHJva2U9e2NvbH0gc3Ryb2tlV2lkdGg9ezIuMn0gc3Ryb2tlTGluZWpvaW49XCJyb3VuZFwiIC8+XG5cbiAgICAgICAgICAgICAgICA8Y2lyY2xlIGN4PXt2WChwdi5FRFYpfSBjeT17cFkoTWF0aC5taW4ocHYuTFZFRFAsIDUwKSl9IHI9ezN9IGZpbGw9e2NvbH0gb3BhY2l0eT17MC43fSAvPlxuICAgICAgICAgICAgICAgIDxjaXJjbGUgY3g9e3ZYKHB2LkVTVil9IGN5PXtwWShwdi5FU1ApfSByPXszfSBmaWxsPXtjb2x9IG9wYWNpdHk9ezAuN30gLz5cbiAgICAgICAgICAgICAgICA8Y2lyY2xlIGN4PXt2WChwdi5FRFYpfSBjeT17cFkocHYuRVNQKX0gcj17M30gZmlsbD17Y29sfSBvcGFjaXR5PXswLjR9IC8+XG4gICAgICAgICAgICAgICAgPGNpcmNsZSBjeD17dlgocHYuRVNWKX0gY3k9e3BZKE1hdGgubWluKHB2LmVzdlAwLCAzMCkpfSByPXszfSBmaWxsPXtjb2x9IG9wYWNpdHk9ezAuNH0gLz5cblxuICAgICAgICAgICAgICAgIDx0ZXh0IHg9e3ZYKHB2LkVEVikgKyA3fSB5PXtwWSgoTWF0aC5taW4ocHYuTFZFRFAsIDUwKSArIHB2LkVTUCkgLyAyKX0gZmlsbD1cIiM2RTc2ODFcIiBmb250U2l6ZT17OX0gZm9udEZhbWlseT1cImluaGVyaXRcIiBmb250V2VpZ2h0PXs2MDB9PmI8L3RleHQ+XG4gICAgICAgICAgICAgICAgPHRleHQgeD17dlgoKHB2LkVEViArIHB2LkVTVikgLyAyKX0geT17cFkocHYuRVNQKSAtIDd9IGZpbGw9XCIjNkU3NjgxXCIgZm9udFNpemU9ezl9IHRleHRBbmNob3I9XCJtaWRkbGVcIiBmb250RmFtaWx5PVwiaW5oZXJpdFwiIGZvbnRXZWlnaHQ9ezYwMH0+YzwvdGV4dD5cbiAgICAgICAgICAgICAgICA8dGV4dCB4PXt2WChwdi5FU1YpIC0gOH0geT17cFkoKHB2LkVTUCArIE1hdGgubWluKHB2LmVzdlAwLCAzMCkpIC8gMil9IGZpbGw9XCIjNkU3NjgxXCIgZm9udFNpemU9ezl9IHRleHRBbmNob3I9XCJlbmRcIiBmb250RmFtaWx5PVwiaW5oZXJpdFwiIGZvbnRXZWlnaHQ9ezYwMH0+ZDwvdGV4dD5cbiAgICAgICAgICAgICAgICA8dGV4dCB4PXt2WCgocHYuRURWICsgcHYuRVNWKSAvIDIpfSB5PXtwWShNYXRoLm1pbihlZHB2cigocHYuRURWICsgcHYuRVNWKSAvIDIsIHBtLmFscGhhKSwgNTApKSArIDE1fSBmaWxsPVwiIzZFNzY4MVwiIGZvbnRTaXplPXs5fSB0ZXh0QW5jaG9yPVwibWlkZGxlXCIgZm9udEZhbWlseT1cImluaGVyaXRcIiBmb250V2VpZ2h0PXs2MDB9PmE8L3RleHQ+XG5cbiAgICAgICAgICAgICAgICA8bGluZSB4MT17dlgocHYuRVNWKX0geTE9e3BZKC04KX0geDI9e3ZYKHB2LkVEVil9IHkyPXtwWSgtOCl9IHN0cm9rZT17Y29sfSBzdHJva2VXaWR0aD17MX0gb3BhY2l0eT17MC41fSAvPlxuICAgICAgICAgICAgICAgIDx0ZXh0IHg9e3ZYKChwdi5FU1YgKyBwdi5FRFYpIC8gMil9IHk9e3BZKC0xNil9IGZpbGw9e2NvbH0gZm9udFNpemU9ezl9IHRleHRBbmNob3I9XCJtaWRkbGVcIiBmb250RmFtaWx5PVwiaW5oZXJpdFwiIG9wYWNpdHk9ezAuNjV9PlNWID0ge01hdGgucm91bmQocHYuU1YpfSBtTDwvdGV4dD5cblxuICAgICAgICAgICAgICAgIHtobCAmJiA8PlxuICAgICAgICAgICAgICAgICAgPGNpcmNsZSBjeD17aGwuY3h9IGN5PXtobC5jeX0gcj17MTR9IGZpbGw9XCJub25lXCIgc3Ryb2tlPVwiI0UzQjM0MVwiIHN0cm9rZVdpZHRoPXsyLjV9IG9wYWNpdHk9ezAuODV9PlxuICAgICAgICAgICAgICAgICAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPVwiclwiIHZhbHVlcz1cIjEyOzE2OzEyXCIgZHVyPVwiMnNcIiByZXBlYXRDb3VudD1cImluZGVmaW5pdGVcIiAvPlxuICAgICAgICAgICAgICAgICAgICA8YW5pbWF0ZSBhdHRyaWJ1dGVOYW1lPVwib3BhY2l0eVwiIHZhbHVlcz1cIjAuOTswLjQ7MC45XCIgZHVyPVwiMnNcIiByZXBlYXRDb3VudD1cImluZGVmaW5pdGVcIiAvPlxuICAgICAgICAgICAgICAgICAgPC9jaXJjbGU+XG4gICAgICAgICAgICAgICAgICA8dGV4dCB4PXtobC5jeH0geT17aGwuY3kgLSAyMH0gZmlsbD1cIiNFM0IzNDFcIiBmb250U2l6ZT17OH0gdGV4dEFuY2hvcj1cIm1pZGRsZVwiIGZvbnRGYW1pbHk9XCJpbmhlcml0XCIgZm9udFdlaWdodD17NjAwfT57aGwubGFiZWx9PC90ZXh0PlxuICAgICAgICAgICAgICAgIDwvPn1cbiAgICAgICAgICAgICAgPC9zdmc+XG4gICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgcG9zaXRpb246IFwiYWJzb2x1dGVcIiwgdG9wOiA4LCByaWdodDogMTAsIGZvbnRTaXplOiA4LCBjb2xvcjogXCIjMzAzNjNEXCIsIGxpbmVIZWlnaHQ6IDEuNiB9fT5cbiAgICAgICAgICAgICAgICA8ZGl2PmEgPSBmaWxsaW5nIMK3IGIgPSBpc292b2x1bS4gY29udHJhY3Rpb248L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2PmMgPSBlamVjdGlvbiDCtyBkID0gaXNvdm9sdW0uIHJlbGF4YXRpb248L2Rpdj5cbiAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBkaXNwbGF5OiBcImdyaWRcIiwgZ3JpZFRlbXBsYXRlQ29sdW1uczogXCJyZXBlYXQoNiwgMWZyKVwiLCBnYXA6IDMsIG1hcmdpbjogXCI2cHggMFwiLCBwYWRkaW5nOiBcIjZweFwiLCBiYWNrZ3JvdW5kOiBcIiMxNjFCMjJcIiwgYm9yZGVyUmFkaXVzOiA0LCBib3JkZXI6IFwiMXB4IHNvbGlkICMyMTI2MkRcIiB9fT5cbiAgICAgICAgICAgICAge1tcbiAgICAgICAgICAgICAgICB7IGw6IFwiRURWXCIsIHY6IHB2LkVEViwgdTogXCJtTFwiLCByOiBub3JtU3QuRURWIH0sXG4gICAgICAgICAgICAgICAgeyBsOiBcIkxWRURQXCIsIHY6IGRpc3BMVkVEUCwgdTogXCJtbUhnXCIsIHI6IG5vcm1TdC5MVkVEUCB9LFxuICAgICAgICAgICAgICAgIHsgbDogXCJFU1ZcIiwgdjogcHYuRVNWLCB1OiBcIm1MXCIsIHI6IG5vcm1TdC5FU1YgfSxcbiAgICAgICAgICAgICAgICB7IGw6IFwiQWZ0ZXJsb2FkXCIsIHY6IHB2LkVTUCwgdTogXCJtbUhnXCIsIHI6IG5vcm1TdC5FU1AgfSxcbiAgICAgICAgICAgICAgICB7IGw6IFwiU3Ryb2tlIFZvbFwiLCB2OiBwdi5TViwgdTogXCJtTFwiLCByOiBub3JtU3QuU1YgfSxcbiAgICAgICAgICAgICAgICB7IGw6IFwiRWplY3Rpb24gRnJcIiwgdjogcHYuRUYsIHU6IFwiJVwiLCByOiBub3JtU3QuRUYgfSxcbiAgICAgICAgICAgICAgXS5tYXAoKHsgbCwgdiwgdSwgciB9KSA9PiAoXG4gICAgICAgICAgICAgICAgPGRpdiBrZXk9e2x9IHN0eWxlPXt7IHRleHRBbGlnbjogXCJjZW50ZXJcIiB9fT5cbiAgICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDcsIGNvbG9yOiBcIiM0ODRGNThcIiwgdGV4dFRyYW5zZm9ybTogXCJ1cHBlcmNhc2VcIiwgbGV0dGVyU3BhY2luZzogMC41IH19PntsfTwvZGl2PlxuICAgICAgICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBmb250U2l6ZTogMTQsIGZvbnRXZWlnaHQ6IDcwMCwgY29sb3I6IFwiI0U2RURGM1wiIH19PlxuICAgICAgICAgICAgICAgICAgICB7diA+PSAxMDAgPyBNYXRoLnJvdW5kKHYpIDogTnVtYmVyKHYpLnRvRml4ZWQoMSl9PEQgdmFsPXt2fSByZWZlcmVuY2U9e3J9IC8+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDcsIGNvbG9yOiBcIiMzMDM2M0RcIiB9fT57dX08L2Rpdj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKSl9XG4gICAgICAgICAgICA8L2Rpdj5cblxuICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBkaXNwbGF5OiBcImdyaWRcIiwgZ3JpZFRlbXBsYXRlQ29sdW1uczogXCJyZXBlYXQoNCwgMWZyKVwiLCBnYXA6IDYsIG1hcmdpbjogXCI0cHggMFwiLCBwYWRkaW5nOiBcIjhweFwiLCBiYWNrZ3JvdW5kOiBcIiMxNjFCMjJcIiwgYm9yZGVyUmFkaXVzOiA0LCBib3JkZXI6IFwiMXB4IHNvbGlkICMyMTI2MkRcIiB9fT5cbiAgICAgICAgICAgICAge1tcbiAgICAgICAgICAgICAgICB7IGtleTogXCJFZXNcIiwgbGFiZWw6IFwiQ29udHJhY3RpbGl0eSAoRWVzKVwiLCBtaW46IDAuNSwgbWF4OiA1LCBzdGVwOiAwLjEgfSxcbiAgICAgICAgICAgICAgICB7IGtleTogXCJFRFZcIiwgbGFiZWw6IFwiUHJlbG9hZCAoRURWKVwiLCBtaW46IDYwLCBtYXg6IDE4MCwgc3RlcDogMiB9LFxuICAgICAgICAgICAgICAgIHsga2V5OiBcIkVhXCIsIGxhYmVsOiBcIkFmdGVybG9hZCAoRWEpXCIsIG1pbjogMC41LCBtYXg6IDQsIHN0ZXA6IDAuMSB9LFxuICAgICAgICAgICAgICAgIHsga2V5OiBcImFscGhhXCIsIGxhYmVsOiBcIkNvbXBsaWFuY2UgKM6xKVwiLCBtaW46IDAuMDA1LCBtYXg6IDAuMDQsIHN0ZXA6IDAuMDAxIH0sXG4gICAgICAgICAgICAgIF0ubWFwKCh7IGtleSwgbGFiZWwsIG1pbiwgbWF4LCBzdGVwOiBzIH0pID0+IHtcbiAgICAgICAgICAgICAgICBjb25zdCB2YWwgPSBtb2RlID09PSBcInNjZW5hcmlvXCIgPyAoc2Nba2V5XSA/PyBOT1JNW2tleV0pIDogc2xba2V5XTtcbiAgICAgICAgICAgICAgICByZXR1cm4gKFxuICAgICAgICAgICAgICAgICAgPGRpdiBrZXk9e2tleX0+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDgsIGNvbG9yOiBcIiM4Qjk0OUVcIiwgbWFyZ2luQm90dG9tOiAyLCB3aGl0ZVNwYWNlOiBcIm5vd3JhcFwiLCBvdmVyZmxvdzogXCJoaWRkZW5cIiwgdGV4dE92ZXJmbG93OiBcImVsbGlwc2lzXCIgfX0+e2xhYmVsfTwvZGl2PlxuICAgICAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInJhbmdlXCIgbWluPXttaW59IG1heD17bWF4fSBzdGVwPXtzfSB2YWx1ZT17dmFsfVxuICAgICAgICAgICAgICAgICAgICAgIG9uQ2hhbmdlPXtlID0+IHNsaWRlKGtleSwgcGFyc2VGbG9hdChlLnRhcmdldC52YWx1ZSkpfVxuICAgICAgICAgICAgICAgICAgICAgIHN0eWxlPXt7IHdpZHRoOiBcIjEwMCVcIiwgYWNjZW50Q29sb3I6IGNvbCwgaGVpZ2h0OiA0IH19IC8+XG4gICAgICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDEwLCBjb2xvcjogXCIjRTZFREYzXCIsIGZvbnRXZWlnaHQ6IDYwMCwgdGV4dEFsaWduOiBcImNlbnRlclwiIH19PlxuICAgICAgICAgICAgICAgICAgICAgIHtrZXkgPT09IFwiYWxwaGFcIiA/IHZhbC50b0ZpeGVkKDMpIDogTnVtYmVyKHZhbCkudG9GaXhlZCgxKX1cbiAgICAgICAgICAgICAgICAgICAgPC9kaXY+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICApO1xuICAgICAgICAgICAgICB9KX1cbiAgICAgICAgICAgIDwvZGl2PlxuXG4gICAgICAgICAgICB7c3RlcHMgJiYgbW9kZSA9PT0gXCJzY2VuYXJpb1wiICYmIChcbiAgICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBiYWNrZ3JvdW5kOiBcIiMxNjFCMjJcIiwgYm9yZGVyOiBgMXB4IHNvbGlkICR7Y29sfTIyYCwgYm9yZGVyUmFkaXVzOiA0LCBwYWRkaW5nOiBcIjEwcHggMTJweFwiLCBtYXJnaW5Ub3A6IDYgfX0+XG4gICAgICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBkaXNwbGF5OiBcImZsZXhcIiwganVzdGlmeUNvbnRlbnQ6IFwic3BhY2UtYmV0d2VlblwiLCBhbGlnbkl0ZW1zOiBcImNlbnRlclwiLCBtYXJnaW5Cb3R0b206IDggfX0+XG4gICAgICAgICAgICAgICAgICA8c3BhbiBzdHlsZT17eyBmb250U2l6ZTogMTIsIGZvbnRXZWlnaHQ6IDcwMCwgY29sb3I6IGNvbCB9fT5cbiAgICAgICAgICAgICAgICAgICAge3NjLmxhYmVsfXtzY0tleSAhPT0gXCJub3JtYWxcIiA/IFwiIOKAlCBNZWNoYW5pc21cIiA6IFwiIOKAlCBIb3cgSXQgV29ya3NcIn1cbiAgICAgICAgICAgICAgICAgIDwvc3Bhbj5cbiAgICAgICAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZGlzcGxheTogXCJmbGV4XCIsIGFsaWduSXRlbXM6IFwiY2VudGVyXCIsIGdhcDogNiB9fT5cbiAgICAgICAgICAgICAgICAgICAgPGJ1dHRvbiBvbkNsaWNrPXsoKSA9PiBzZXRTdGVwKHMgPT4gTWF0aC5tYXgoMCwgcyAtIDEpKX0gZGlzYWJsZWQ9e3N0ZXAgPT09IDB9IHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgcGFkZGluZzogXCIycHggMTBweFwiLCBmb250U2l6ZTogMTEsIGZvbnRXZWlnaHQ6IDYwMCxcbiAgICAgICAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiBzdGVwID09PSAwID8gXCIjMEQxMTE3XCIgOiBjb2wgKyBcIjE4XCIsIGNvbG9yOiBzdGVwID09PSAwID8gXCIjMzAzNjNEXCIgOiBjb2wsXG4gICAgICAgICAgICAgICAgICAgICAgYm9yZGVyOiBgMXB4IHNvbGlkICR7c3RlcCA9PT0gMCA/IFwiIzIxMjYyRFwiIDogY29sICsgXCI0NFwifWAsXG4gICAgICAgICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiAzLCBjdXJzb3I6IHN0ZXAgPT09IDAgPyBcImRlZmF1bHRcIiA6IFwicG9pbnRlclwiLCBmb250RmFtaWx5OiBcImluaGVyaXRcIixcbiAgICAgICAgICAgICAgICAgICAgfX0+4oaQIFByZXY8L2J1dHRvbj5cbiAgICAgICAgICAgICAgICAgICAgPHNwYW4gc3R5bGU9e3sgZm9udFNpemU6IDEwLCBjb2xvcjogXCIjNkU3NjgxXCIsIG1pbldpZHRoOiAzMiwgdGV4dEFsaWduOiBcImNlbnRlclwiIH19PntzdGVwICsgMX0ve25TdGVwc308L3NwYW4+XG4gICAgICAgICAgICAgICAgICAgIDxidXR0b24gb25DbGljaz17KCkgPT4gc2V0U3RlcChzID0+IE1hdGgubWluKG5TdGVwcyAtIDEsIHMgKyAxKSl9IGRpc2FibGVkPXtzdGVwID09PSBuU3RlcHMgLSAxfSBzdHlsZT17e1xuICAgICAgICAgICAgICAgICAgICAgIHBhZGRpbmc6IFwiMnB4IDEwcHhcIiwgZm9udFNpemU6IDExLCBmb250V2VpZ2h0OiA2MDAsXG4gICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogc3RlcCA9PT0gblN0ZXBzIC0gMSA/IFwiIzBEMTExN1wiIDogY29sICsgXCIxOFwiLCBjb2xvcjogc3RlcCA9PT0gblN0ZXBzIC0gMSA/IFwiIzMwMzYzRFwiIDogY29sLFxuICAgICAgICAgICAgICAgICAgICAgIGJvcmRlcjogYDFweCBzb2xpZCAke3N0ZXAgPT09IG5TdGVwcyAtIDEgPyBcIiMyMTI2MkRcIiA6IGNvbCArIFwiNDRcIn1gLFxuICAgICAgICAgICAgICAgICAgICAgIGJvcmRlclJhZGl1czogMywgY3Vyc29yOiBzdGVwID09PSBuU3RlcHMgLSAxID8gXCJkZWZhdWx0XCIgOiBcInBvaW50ZXJcIiwgZm9udEZhbWlseTogXCJpbmhlcml0XCIsXG4gICAgICAgICAgICAgICAgICAgIH19Pk5leHQg4oaSPC9idXR0b24+XG4gICAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGRpc3BsYXk6IFwiZmxleFwiLCBnYXA6IDQsIG1hcmdpbkJvdHRvbTogOCB9fT5cbiAgICAgICAgICAgICAgICAgIHtzdGVwcy5tYXAoKF8sIGkpID0+IChcbiAgICAgICAgICAgICAgICAgICAgPGRpdiBrZXk9e2l9IG9uQ2xpY2s9eygpID0+IHNldFN0ZXAoaSl9IHN0eWxlPXt7XG4gICAgICAgICAgICAgICAgICAgICAgZmxleDogMSwgaGVpZ2h0OiAzLCBib3JkZXJSYWRpdXM6IDIsIGN1cnNvcjogXCJwb2ludGVyXCIsXG4gICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZDogaSA8PSBzdGVwID8gY29sIDogXCIjMjEyNjJEXCIsIHRyYW5zaXRpb246IFwiYmFja2dyb3VuZCAwLjJzXCIsXG4gICAgICAgICAgICAgICAgICAgIH19IC8+XG4gICAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgICA8ZGl2IHN0eWxlPXt7IGZvbnRTaXplOiAxMiwgZm9udFdlaWdodDogNzAwLCBjb2xvcjogXCIjRTZFREYzXCIsIG1hcmdpbkJvdHRvbTogNCB9fT57c3RlcHNbc3RlcF0udGl0bGV9PC9kaXY+XG4gICAgICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBmb250U2l6ZTogMTEsIGNvbG9yOiBcIiM4Qjk0OUVcIiwgbGluZUhlaWdodDogMS43LCBtaW5IZWlnaHQ6IDQ4IH19PntzdGVwc1tzdGVwXS50ZXh0fTwvZGl2PlxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICl9XG5cbiAgICAgICAgICAgIHttb2RlID09PSBcIm1hbnVhbFwiICYmIChcbiAgICAgICAgICAgICAgPGRpdiBzdHlsZT17eyBiYWNrZ3JvdW5kOiBcIiMxNjFCMjJcIiwgYm9yZGVyOiBcIjFweCBzb2xpZCAjMjEyNjJEXCIsIGJvcmRlclJhZGl1czogNCwgcGFkZGluZzogXCI4cHggMTJweFwiLCBtYXJnaW5Ub3A6IDYsIGZvbnRTaXplOiAxMCwgY29sb3I6IFwiIzZFNzY4MVwiLCBsaW5lSGVpZ2h0OiAxLjYgfX0+XG4gICAgICAgICAgICAgICAgPHN0cm9uZyBzdHlsZT17eyBjb2xvcjogXCIjRTZFREYzXCIgfX0+TWFudWFsIG1vZGUg4oCUIGluZGVwZW5kZW50IGVmZmVjdHMgKGNmMDI1KTwvc3Ryb25nPjxiciAvPlxuICAgICAgICAgICAgICAgIEFmdGVybG9hZCAoRWEpIGlzIGhlbGQgYXQgMi4wIHVubGVzcyB5b3UgbW92ZSB0aGUgRWEgc2xpZGVyLiBFU1Agc3RheXMgfjEyMCBtbUhnLjxiciAvPlxuICAgICAgICAgICAgICAgIOKAoiA8c3Ryb25nIHN0eWxlPXt7IGNvbG9yOiBcIiNCQzhDRkZcIiB9fT5FZXM8L3N0cm9uZz46IHJvdGF0ZXMgRVNQVlIg4oaSIGxlZnQgc2lkZSBvZiBsb29wIG1vdmVzIChFU1YgY2hhbmdlcyksIHJpZ2h0IHNpZGUgc3RheXM8YnIgLz5cbiAgICAgICAgICAgICAgICDigKIgPHN0cm9uZyBzdHlsZT17eyBjb2xvcjogXCIjMUY2RkVCXCIgfX0+RURWPC9zdHJvbmc+OiBzbGlkZXMgYWxvbmcgc2FtZSBFU1BWUiDihpIgcmlnaHQgc2lkZSBtb3ZlcywgbGVmdCBzaWRlIHN0YXlzPGJyIC8+XG4gICAgICAgICAgICAgICAg4oCiIDxzdHJvbmcgc3R5bGU9e3sgY29sb3I6IFwiI0EzNzFGN1wiIH19PkVhPC9zdHJvbmc+OiBjaGFuZ2VzIGFmdGVybG9hZCDihpIgRVNQIHJpc2VzL2ZhbGxzLCBFU1YgY2hhbmdlczxiciAvPlxuICAgICAgICAgICAgICAgIOKAoiA8c3Ryb25nIHN0eWxlPXt7IGNvbG9yOiBcIiNGMDg4M0VcIiB9fT7OsTwvc3Ryb25nPjogY29tcGxpYW5jZSDigJQgc3RpZmZlciB3YWxsIGZpbGxzIHRvIHNtYWxsZXIgRURWIGF0IHNhbWUgZmlsbGluZyBwcmVzc3VyZVxuICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICl9XG5cbiAgICAgICAgICAgIDxkaXYgc3R5bGU9e3sgZm9udFNpemU6IDcsIGNvbG9yOiBcIiMyMTI2MkRcIiwgdGV4dEFsaWduOiBcImNlbnRlclwiLCBtYXJnaW5Ub3A6IDggfX0+RHIuIElhbiBNdXJyYXkgwrcgQ0MgQlktTkMtU0EgwrcgU2FnYXdhL1N1Z2EgwrcgQ1ZQaHlzaW9sb2d5IGNmMDI1L2NmMDI2PC9kaXY+XG4gICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuICAgICAgKTtcbiAgICB9XG5cbiAgICBjb25zdCByb290ID0gUmVhY3RET00uY3JlYXRlUm9vdChkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgncm9v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</script></head>
+<body>
+  <div id="root"><div style="background: rgb(13, 17, 23); color: rgb(201, 209, 217); min-height: 100vh; font-family: &quot;JetBrains Mono&quot;, &quot;SF Mono&quot;, &quot;Fira Code&quot;, monospace; padding: 8px 8px 20px;"><div style="max-width: 580px; margin: 0px auto;"><div style="text-align: center; margin-bottom: 8px;"><h1 style="font-size: 15px; font-weight: 700; color: rgb(230, 237, 243); margin: 0px; letter-spacing: 1.5px; text-transform: uppercase;">Pressure–Volume Loop</h1><div style="font-size: 9px; color: rgb(72, 79, 88); margin-top: 2px;">ESPVR &amp; EDPVR control the boundaries · The loop is emergent</div></div><div style="display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px;"><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-size: 8px; color: rgb(72, 79, 88); width: 62px; text-align: right; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.5px;">Conditions</span><button style="padding: 3px 9px; font-size: 10px; font-weight: 700; background: rgba(88, 166, 255, 0.125); color: rgb(88, 166, 255); border: 1px solid rgba(88, 166, 255, 0.333); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Normal</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">HFrEF</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">HFpEF</button></div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-size: 8px; color: rgb(72, 79, 88); width: 62px; text-align: right; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.5px;">Valvular</span><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Aortic Stenosis</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Aortic Regurg</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Mitral Stenosis</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Mitral Regurg</button></div><div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;"><span style="font-size: 8px; color: rgb(72, 79, 88); width: 62px; text-align: right; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.5px;">Acute</span><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Hemorrhage</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">IV Fluid</button><button style="padding: 3px 9px; font-size: 10px; font-weight: 400; background: transparent; color: rgb(110, 118, 129); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: pointer; font-family: inherit; transition: 0.15s;">Inotrope</button></div></div><div style="background: rgb(13, 17, 23); border: 1px solid rgb(33, 38, 45); border-radius: 6px; padding: 4px; position: relative;"><svg viewBox="0 0 540 420" style="width: 100%; height: auto; display: block;"><line x1="56" y1="22" x2="56" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="161" y1="22" x2="161" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="266" y1="22" x2="266" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="371" y1="22" x2="371" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="476" y1="22" x2="476" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="368" x2="518" y2="368" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="295.91666666666663" x2="518" y2="295.91666666666663" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="223.83333333333331" x2="518" y2="223.83333333333331" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="151.75" x2="518" y2="151.75" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="79.66666666666663" x2="518" y2="79.66666666666663" stroke="#161B22" stroke-width="1"></line><line x1="56" y1="22" x2="56" y2="368" stroke="#30363D" stroke-width="1.5"></line><line x1="56" y1="368" x2="518" y2="368" stroke="#30363D" stroke-width="1.5"></line><text x="56" y="384" text-anchor="middle" fill="#484F58" font-size="10" font-family="inherit">0</text><text x="161" y="384" text-anchor="middle" fill="#484F58" font-size="10" font-family="inherit">50</text><text x="266" y="384" text-anchor="middle" fill="#484F58" font-size="10" font-family="inherit">100</text><text x="371" y="384" text-anchor="middle" fill="#484F58" font-size="10" font-family="inherit">150</text><text x="476" y="384" text-anchor="middle" fill="#484F58" font-size="10" font-family="inherit">200</text><text x="48" y="372" text-anchor="end" fill="#484F58" font-size="10" font-family="inherit">0</text><text x="48" y="299.91666666666663" text-anchor="end" fill="#484F58" font-size="10" font-family="inherit">50</text><text x="48" y="227.83333333333331" text-anchor="end" fill="#484F58" font-size="10" font-family="inherit">100</text><text x="48" y="155.75" text-anchor="end" fill="#484F58" font-size="10" font-family="inherit">150</text><text x="48" y="83.66666666666663" text-anchor="end" fill="#484F58" font-size="10" font-family="inherit">200</text><text x="287" y="416" text-anchor="middle" fill="#6E7681" font-size="11" font-family="inherit">Volume (mL)</text><text x="14" y="195" text-anchor="middle" fill="#6E7681" font-size="11" font-family="inherit" transform="rotate(-90,14,195)">Pressure (mmHg)</text><polyline points="77.0,368.0 81.2,360.8 85.4,353.6 89.6,346.4 93.8,339.2 98.0,332.0 102.2,324.8 106.4,317.5 110.6,310.3 114.8,303.1 119.0,295.9 123.2,288.7 127.4,281.5 131.6,274.3 135.8,267.1 140.0,259.9 144.2,252.7 148.4,245.5 152.6,238.3 156.8,231.0 161.0,223.8 165.2,216.6 169.4,209.4 173.6,202.2 177.8,195.0 182.0,187.8 186.2,180.6 190.4,173.4 194.6,166.2 198.8,159.0 203.0,151.8 207.2,144.5 211.4,137.3 215.6,130.1 219.8,122.9 224.0,115.7 228.2,108.5 232.4,101.3 236.6,94.1 240.8,86.9 245.0,79.7 249.2,72.5 253.4,65.3 257.6,58.0 261.8,50.8 266.0,43.6 270.2,36.4 274.4,29.2 278.6,22.0 282.8,22.0 287.0,22.0" fill="none" stroke="#58A6FF" stroke-width="1.5" opacity="0.45" stroke-dasharray="6,3"></polyline><polyline points="56.0,368.0 60.2,368.0 64.4,367.9 68.6,367.9 72.8,367.9 77.0,367.8 81.2,367.8 85.4,367.8 89.6,367.7 93.8,367.7 98.0,367.6 102.2,367.6 106.4,367.6 110.6,367.5 114.8,367.5 119.0,367.4 123.2,367.4 127.4,367.3 131.6,367.2 135.8,367.2 140.0,367.1 144.2,367.1 148.4,367.0 152.6,366.9 156.8,366.8 161.0,366.8 165.2,366.7 169.4,366.6 173.6,366.5 177.8,366.4 182.0,366.3 186.2,366.2 190.4,366.1 194.6,366.0 198.8,365.9 203.0,365.8 207.2,365.7 211.4,365.6 215.6,365.4 219.8,365.3 224.0,365.2 228.2,365.0 232.4,364.9 236.6,364.7 240.8,364.5 245.0,364.4 249.2,364.2 253.4,364.0 257.6,363.8 261.8,363.6 266.0,363.4 270.2,363.2 274.4,363.0 278.6,362.7 282.8,362.5 287.0,362.2 291.2,361.9 295.4,361.7 299.6,361.4 303.8,361.1 308.0,360.8 312.2,360.5 316.4,360.1 320.6,359.8 324.8,359.4 329.0,359.0 333.2,358.6 337.4,358.2 341.6,357.8 345.8,357.3 350.0,356.9 354.2,356.4 358.4,355.9 362.6,355.4 366.8,354.8 371.0,354.2 375.2,353.7 379.4,353.0 383.6,352.4 387.8,351.7 392.0,351.0 396.2,350.3 400.4,349.6 404.6,348.8 408.8,348.0 413.0,347.1 417.2,346.2 421.4,345.3 425.6,344.4 429.8,343.4 434.0,342.3 438.2,341.3 442.4,340.1 446.6,339.0 450.8,337.8 455.0,336.5 459.2,335.2 463.4,333.8 467.6,332.4 471.8,330.9 476.0,329.4 480.2,327.8 484.4,326.1 488.6,324.3 492.8,322.5 497.0,320.7" fill="none" stroke="#58A6FF" stroke-width="1.5" opacity="0.45" stroke-dasharray="6,3"></polyline><text x="155.6" y="233.25" fill="#58A6FF" font-size="9" opacity="0.6" font-family="inherit" font-weight="600">ESPVR</text><text x="416" y="342.12171121583464" fill="#58A6FF" font-size="9" opacity="0.6" font-family="inherit" font-weight="600">EDPVR</text><line x1="308" y1="368" x2="179.66666666666669" y2="191.79629629629633" stroke="#E3B341" stroke-width="1.2" stroke-dasharray="3,3" opacity="0.5"></line><text x="312" y="365.1166666666667" fill="#E3B341" font-size="8" opacity="0.55" font-family="inherit">Ea</text><polygon points="179.7,366.4 186.1,366.2 192.5,366.1 198.9,365.9 205.3,365.7 211.8,365.5 218.2,365.3 224.6,365.1 231.0,364.9 237.4,364.7 243.8,364.4 250.3,364.1 256.7,363.8 263.1,363.5 269.5,363.2 275.9,362.9 282.3,362.5 288.8,362.1 295.2,361.7 301.6,361.2 308.0,360.8 308.0,360.8 308.0,346.7 308.0,332.6 308.0,318.5 308.0,304.4 308.0,290.4 308.0,276.3 308.0,262.2 308.0,248.1 308.0,234.0 308.0,220.0 308.0,205.9 308.0,191.8 308.0,191.8 301.6,190.0 295.2,188.2 288.8,186.6 282.3,185.0 275.9,183.6 269.5,182.5 263.1,181.5 256.7,180.8 250.3,180.4 243.8,180.3 237.4,180.4 231.0,180.8 224.6,181.5 218.2,182.5 211.8,183.6 205.3,185.0 198.9,186.6 192.5,188.2 186.1,190.0 179.7,191.8 179.7,191.8 179.7,206.3 179.7,220.9 179.7,235.4 179.7,250.0 179.7,264.5 179.7,279.1 179.7,293.6 179.7,308.2 179.7,322.7 179.7,337.3 179.7,351.8 179.7,366.4" fill="#58A6FF" fill-opacity="0.1" stroke="#58A6FF" stroke-width="2.2" stroke-linejoin="round"></polygon><circle cx="308" cy="360.77496035895416" r="3" fill="#58A6FF" opacity="0.7"></circle><circle cx="179.66666666666669" cy="191.79629629629633" r="3" fill="#58A6FF" opacity="0.7"></circle><circle cx="308" cy="191.79629629629633" r="3" fill="#58A6FF" opacity="0.4"></circle><circle cx="179.66666666666669" cy="366.38017916613165" r="3" fill="#58A6FF" opacity="0.4"></circle><text x="315" y="276.2856283276252" fill="#6E7681" font-size="9" font-family="inherit" font-weight="600">b</text><text x="243.83333333333334" y="184.79629629629633" fill="#6E7681" font-size="9" text-anchor="middle" font-family="inherit" font-weight="600">c</text><text x="171.66666666666669" y="279.088237731214" fill="#6E7681" font-size="9" text-anchor="end" font-family="inherit" font-weight="600">d</text><text x="243.83333333333334" y="379.40823079083816" fill="#6E7681" font-size="9" text-anchor="middle" font-family="inherit" font-weight="600">a</text><line x1="179.66666666666669" y1="368" x2="308" y2="368" stroke="#58A6FF" stroke-width="1" opacity="0.5"></line><text x="243.83333333333334" y="368" fill="#58A6FF" font-size="9" text-anchor="middle" font-family="inherit" opacity="0.65">SV = 61 mL</text></svg><div style="position: absolute; top: 8px; right: 10px; font-size: 8px; color: rgb(48, 54, 61); line-height: 1.6;"><div>a = filling · b = isovolum. contraction</div><div>c = ejection · d = isovolum. relaxation</div></div></div><div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; margin: 6px 0px; padding: 6px; background: rgb(22, 27, 34); border-radius: 4px; border: 1px solid rgb(33, 38, 45);"><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">EDV</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">120</div><div style="font-size: 7px; color: rgb(48, 54, 61);">mL</div></div><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">LVEDP</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">5.0</div><div style="font-size: 7px; color: rgb(48, 54, 61);">mmHg</div></div><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">ESV</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">58.9</div><div style="font-size: 7px; color: rgb(48, 54, 61);">mL</div></div><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">Afterload</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">122</div><div style="font-size: 7px; color: rgb(48, 54, 61);">mmHg</div></div><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">Stroke Vol</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">61.1</div><div style="font-size: 7px; color: rgb(48, 54, 61);">mL</div></div><div style="text-align: center;"><div style="font-size: 7px; color: rgb(72, 79, 88); text-transform: uppercase; letter-spacing: 0.5px;">Ejection Fr</div><div style="font-size: 14px; font-weight: 700; color: rgb(230, 237, 243);">50.9</div><div style="font-size: 7px; color: rgb(48, 54, 61);">%</div></div></div><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0px; padding: 8px; background: rgb(22, 27, 34); border-radius: 4px; border: 1px solid rgb(33, 38, 45);"><div><div style="font-size: 8px; color: rgb(139, 148, 158); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Contractility (Ees)</div><input type="range" min="0.5" max="5" step="0.1" value="2.5" style="width: 100%; accent-color: rgb(88, 166, 255); height: 4px;"><div style="font-size: 10px; color: rgb(230, 237, 243); font-weight: 600; text-align: center;">2.5</div></div><div><div style="font-size: 8px; color: rgb(139, 148, 158); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Preload (EDV)</div><input type="range" min="60" max="180" step="2" value="120" style="width: 100%; accent-color: rgb(88, 166, 255); height: 4px;"><div style="font-size: 10px; color: rgb(230, 237, 243); font-weight: 600; text-align: center;">120.0</div></div><div><div style="font-size: 8px; color: rgb(139, 148, 158); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Afterload (Ea)</div><input type="range" min="0.5" max="4" step="0.1" value="2" style="width: 100%; accent-color: rgb(88, 166, 255); height: 4px;"><div style="font-size: 10px; color: rgb(230, 237, 243); font-weight: 600; text-align: center;">2.0</div></div><div><div style="font-size: 8px; color: rgb(139, 148, 158); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Compliance (α)</div><input type="range" min="0.005" max="0.04" step="0.001" value="0.02" style="width: 100%; accent-color: rgb(88, 166, 255); height: 4px;"><div style="font-size: 10px; color: rgb(230, 237, 243); font-weight: 600; text-align: center;">0.020</div></div></div><div style="background: rgb(22, 27, 34); border: 1px solid rgba(88, 166, 255, 0.133); border-radius: 4px; padding: 10px 12px; margin-top: 6px;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><span style="font-size: 12px; font-weight: 700; color: rgb(88, 166, 255);">Normal — How It Works</span><div style="display: flex; align-items: center; gap: 6px;"><button disabled="" style="padding: 2px 10px; font-size: 11px; font-weight: 600; background: rgb(13, 17, 23); color: rgb(48, 54, 61); border: 1px solid rgb(33, 38, 45); border-radius: 3px; cursor: default; font-family: inherit;">← Prev</button><span style="font-size: 10px; color: rgb(110, 118, 129); min-width: 32px; text-align: center;">1/4</span><button style="padding: 2px 10px; font-size: 11px; font-weight: 600; background: rgba(88, 166, 255, 0.094); color: rgb(88, 166, 255); border: 1px solid rgba(88, 166, 255, 0.267); border-radius: 3px; cursor: pointer; font-family: inherit;">Next →</button></div></div><div style="display: flex; gap: 4px; margin-bottom: 8px;"><div style="flex: 1 1 0%; height: 3px; border-radius: 2px; cursor: pointer; background: rgb(88, 166, 255); transition: background 0.2s;"></div><div style="flex: 1 1 0%; height: 3px; border-radius: 2px; cursor: pointer; background: rgb(33, 38, 45); transition: background 0.2s;"></div><div style="flex: 1 1 0%; height: 3px; border-radius: 2px; cursor: pointer; background: rgb(33, 38, 45); transition: background 0.2s;"></div><div style="flex: 1 1 0%; height: 3px; border-radius: 2px; cursor: pointer; background: rgb(33, 38, 45); transition: background 0.2s;"></div></div><div style="font-size: 12px; font-weight: 700; color: rgb(230, 237, 243); margin-bottom: 4px;">Baseline</div><div style="font-size: 11px; color: rgb(139, 148, 158); line-height: 1.7; min-height: 48px;">A healthy left ventricle. Two boundary curves control the loop: ESPVR (contractility ceiling) and EDPVR (passive compliance floor). The loop shape emerges from these constraints.</div></div><div style="font-size: 7px; color: rgb(33, 38, 45); text-align: center; margin-top: 8px;">Dr. Ian Murray · CC BY-NC-SA · Sagawa/Suga · CVPhysiology cf025/cf026</div></div></div></div>
+
+  <script type="text/babel">
+    const { useState, useMemo, useCallback } = React;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // PRESSURE–VOLUME LOOP SIMULATOR v4
+    // CVPhysiology cf025 (independent effects) + cf026 (interdependent)
+    //
+    // ESPVR: P = Ees × (V − V0)         contractility boundary
+    // EDPVR: P = A × (e^(α×V) − 1)     passive compliance
+    // Ea:    ESP = Ea × (EDV − ESV)      arterial elastance
+    // ESV  = (Ea×EDV + Ees×V0)/(Ees+Ea)
+    //
+    // INDEPENDENT EFFECTS (cf025 — what the sliders model):
+    //   ↑Preload (EDV):  EDV↑, ESV unchanged, SV↑  (slides along ESPVR)
+    //   ↑Inotropy (Ees): ESPVR steepens, ESV↓, EDV unchanged, SV↑ (wider)
+    //   ↑Afterload (Ea): ESP↑, ESV↑, EDV unchanged, SV↓ (taller/narrower)
+    //   ↑Stiffness (α):  EDPVR shifts up, EDV↓ at same filling pressure (horizontal shift)
+    //
+    // BUG FIXES in v4.1:
+    //   - Slider transition snapshots scenario params (no afterload leak)
+    //   - Compliance slider shifts EDV horizontally via filling-pressure equivalence
+    //   - Each slider is truly independent (cf025)
+    // ═══════════════════════════════════════════════════════════════════
+
+    const V0 = 10, A_ED = 0.5, REF_ALPHA = 0.02;
+
+    function getEffectiveEDV(sliderEDV, alpha) {
+      if (Math.abs(alpha - REF_ALPHA) < 0.001) return sliderEDV;
+      const refLVEDP = A_ED * (Math.exp(REF_ALPHA * sliderEDV) - 1);
+      if (alpha <= 0.001) return Math.min(sliderEDV * 1.3, 200);
+      const edv = Math.log(refLVEDP / A_ED + 1) / alpha;
+      return Math.max(50, Math.min(edv, 200));
+    }
+
+    function computeState(Ees, EDV, Ea, alpha) {
+      const ESV = (Ea * EDV + Ees * V0) / (Ees + Ea);
+      const ESP = Ees * (ESV - V0);
+      const SV = EDV - ESV;
+      const EF = (SV / EDV) * 100;
+      const LVEDP = A_ED * (Math.exp(alpha * EDV) - 1);
+      const esvP0 = A_ED * (Math.exp(alpha * ESV) - 1);
+      return { EDV, ESV, ESP, SV, EF, LVEDP, esvP0 };
+    }
+
+    function computePinned(Ees, sliderEDV, alpha, refESP, refLVEDP) {
+      const EDV = Math.max(50, Math.min(Math.log(refLVEDP / A_ED + 1) / alpha, sliderEDV));
+      const ESV = Math.min(refESP / Ees + V0, EDV - 1);
+      const ESP = refESP;
+      const SV = EDV - ESV;
+      const EF = (SV / EDV) * 100;
+      const LVEDP = A_ED * (Math.exp(alpha * EDV) - 1);
+      const esvP0 = A_ED * (Math.exp(alpha * ESV) - 1);
+      return { EDV, ESV, ESP, SV, EF, LVEDP, esvP0 };
+    }
+
+    function edpvr(V, alpha) { return A_ED * (Math.exp(alpha * V) - 1); }
+    function espvr(V, Ees) { return Ees * (V - V0); }
+
+    const SC = {
+      normal: {
+        label: "Normal", Ees: 2.5, EDV: 120, Ea: 2.0, alpha: 0.02, color: "#58A6FF",
+        highlight: null,
+        steps: [
+          { title: "Baseline", text: "A healthy left ventricle. Two boundary curves control the loop: ESPVR (contractility ceiling) and EDPVR (passive compliance floor). The loop shape emerges from these constraints." },
+          { title: "Filling (phase a)", text: "Mitral valve opens → blood flows from left atrium into the ventricle along the EDPVR. Volume rises gently because the normal wall is compliant — filling is easy and pressure stays low." },
+          { title: "Systole (b → c → d)", text: "Phase b: all valves closed, pressure builds. Phase c: aortic valve opens, blood is ejected. The top-left corner sits on the ESPVR — the maximum the ventricle can squeeze at that volume. Phase d: pressure falls back down." },
+          { title: "Sliding vs. rotating", text: "Preload changes SLIDE the loop along a fixed ESPVR. Contractility changes ROTATE the ESPVR itself. Both can increase Stroke Volume (SV), but through fundamentally different mechanisms. Try the sliders to see this." },
+        ]
+      },
+      hfref: {
+        label: "HFrEF", Ees: 1.0, EDV: 180, Ea: 2.2, alpha: 0.02, color: "#F85149",
+        highlight: "topleft",
+        steps: [
+          { title: "The heart muscle weakens", text: "In dilated cardiomyopathy or after a large MI, the ventricle loses contractile force. The ESPVR flattens — the ceiling drops. The ventricle simply cannot squeeze as hard." },
+          { title: "Can't empty → volume backs up", text: "Because the ventricle can't empty properly, blood accumulates. The body retains fluid (RAAS activation), pushing the loop rightward. The ventricle dilates." },
+          { title: "Filling pressures rise → congestion", text: "More volume in the ventricle means higher diastolic pressure (LVEDP rises). This backs up into the lungs → pulmonary congestion → dyspnea. The Starling mechanism partially compensates Stroke Volume (SV), but at the cost of congestion." },
+          { title: "Ejection Fraction (EF) drops", text: "EF falls to ~30%. The loop is wide but flat — lots of volume, poor emptying. Treatment targets: reduce preload (diuretics), reduce afterload (ACE inhibitors), and if possible support contractility." },
+        ]
+      },
+      hfpef: {
+        label: "HFpEF", Ees: 3.0, EDV: 105, Ea: 2.2, alpha: 0.035, color: "#F0883E",
+        highlight: "bottomright",
+        steps: [
+          { title: "The wall stiffens", text: "In hypertensive heart disease, aging, or amyloid, the ventricular wall becomes stiff. Think of inflating a stiff balloon — it takes much more pressure to fill the same volume. The EDPVR curve shifts upward." },
+          { title: "Filling pressure rises despite less volume", text: "Even though the ventricle fills to a SMALLER volume, diastolic pressure (LVEDP) is much higher. The bottom of the loop rises. This is the opposite of HFrEF — the ventricle is small and stiff, not big and floppy." },
+          { title: "Same symptoms, different mechanism", text: "High LVEDP backs up into the lungs → pulmonary congestion → dyspnea. The patient looks identical to HFrEF clinically — but the cause is impaired filling, not impaired contraction." },
+          { title: "The diagnostic trap", text: "Ejection Fraction (EF) is preserved (>50%) — the ventricle empties fine, it just can't fill. Echo shows 'normal EF' but diastolic dysfunction (elevated E/e'). This is why HFpEF was historically missed." },
+        ]
+      },
+      as: {
+        label: "Aortic Stenosis", Ees: 3.0, EDV: 130, Ea: 3.5, alpha: 0.02, color: "#A371F7",
+        highlight: "topright",
+        steps: [
+          { title: "Fixed obstruction to outflow", text: "A stenotic aortic valve creates a barrier to ejection. The ventricle must generate much higher pressure (afterload/ESP) to push blood through the narrowed opening. The loop grows taller." },
+          { title: "Pressure overload → hypertrophy", text: "The ventricle compensates by thickening its walls (concentric hypertrophy) to generate the higher pressures needed. The loop becomes tall and narrow — high afterload (ESP), reduced Stroke Volume (SV)." },
+          { title: "High energy cost", text: "A tall, narrow loop means enormous myocardial oxygen demand. The thick wall also has poor subendocardial perfusion → patients develop angina even without coronary artery disease." },
+          { title: "Decompensation", text: "Initially Stroke Volume (SV) and Ejection Fraction (EF) are maintained through hypertrophy. But eventually the muscle can't keep up → contractility falls → EF drops → rapid clinical deterioration." },
+        ]
+      },
+      ar: {
+        label: "Aortic Regurg", Ees: 2.5, EDV: 180, Ea: 1.5, alpha: 0.018, color: "#D2A8FF",
+        highlight: "bottomright",
+        steps: [
+          { title: "Backward leak during diastole", text: "An incompetent aortic valve lets blood leak backward from the aorta into the ventricle during diastole. The LV fills from TWO sources — the left atrium AND the aorta — so it overfills dramatically." },
+          { title: "Volume overload widens the loop", text: "The ventricle dilates to accommodate the extra volume. The loop shifts right and becomes wide. Total Stroke Volume (SV) is very large, but some of it just leaks backward — forward SV to the body is reduced." },
+          { title: "Eccentric remodeling", text: "Chronic volume overload causes the ventricle to remodel — it stretches (sarcomeres added in series). The chamber gets bigger but compliance may actually improve initially, keeping filling pressures manageable." },
+          { title: "Progressive failure", text: "Over time, the chronic dilation increases wall stress → contractility eventually drops → the ESPVR flattens → Ejection Fraction (EF) falls. By the time EF drops, significant irreversible damage has occurred." },
+        ]
+      },
+      ms: {
+        label: "Mitral Stenosis", Ees: 2.5, EDV: 90, Ea: 2.0, alpha: 0.02, color: "#79C0FF",
+        highlight: "bottomright",
+        steps: [
+          { title: "Restricted filling", text: "A stenotic mitral valve limits blood flow from the left atrium into the ventricle. The ventricle receives less blood per beat → it underfills. The loop shrinks and shifts left." },
+          { title: "The ventricle itself is normal", text: "Contractility is fine, compliance is fine — the problem is upstream. The ventricle just doesn't get enough blood to work with. Stroke Volume (SV) drops because there's less to eject." },
+          { title: "LVEDP is LOW — key point", text: "Unlike most causes of pulmonary congestion, the LV filling pressure is actually low. The ventricle is starved of volume, not overloaded. This distinguishes MS from heart failure on the PV loop." },
+          { title: "LA pressure drives the congestion", text: "The pathology is in the left atrium — LA pressure must be very high to force blood through the stenotic valve. LA dilates → atrial fibrillation. Pulmonary congestion comes from LA hypertension, not LV dysfunction." },
+        ]
+      },
+      mr: {
+        label: "Mitral Regurg", Ees: 2.5, EDV: 160, Ea: 1.2, alpha: 0.02, color: "#3FB950",
+        highlight: "topleft",
+        steps: [
+          { title: "Backward leak during systole", text: "An incompetent mitral valve lets blood regurgitate from the ventricle back into the left atrium during contraction. This creates a low-resistance escape route — the ventricle can empty more easily." },
+          { title: "Afterload (ESP) drops", text: "Because part of the ejection goes into the low-pressure LA, the effective afterload is reduced. The ventricle doesn't have to generate as much pressure to empty. The top of the loop drops." },
+          { title: "Volume overload from regurgitant return", text: "The leaked blood returns from the LA next beat, increasing filling volume. The loop shifts right and widens. Total Stroke Volume (SV) is high, but forward SV is reduced." },
+          { title: "The Ejection Fraction (EF) trap", text: "EF appears supranormal (>60%) because of the low-resistance unloading. But this is misleading — in severe MR, an EF of 60% actually indicates the ventricle is already failing. Guidelines trigger surgery at EF <60%." },
+        ]
+      },
+      hemorrhage: {
+        label: "Hemorrhage", Ees: 2.8, EDV: 85, Ea: 2.5, alpha: 0.02, color: "#D29922",
+        highlight: "bottomright",
+        steps: [
+          { title: "Acute blood loss", text: "Blood loss reduces circulating volume → less venous return → the ventricle fills less. The loop slides left and shrinks. This is primarily a preload problem." },
+          { title: "Sympathetic compensation kicks in", text: "Baroreceptors detect falling pressure → sympathetic activation → heart rate increases, contractility improves slightly, and peripheral vessels constrict to maintain blood pressure." },
+          { title: "Smaller loop, lower Stroke Volume (SV)", text: "Despite compensation, SV drops significantly. The loop is small and shifted left. The ventricle is working fine — it just doesn't have enough blood to pump." },
+          { title: "Tachycardia is the early sign", text: "Cardiac output = SV × heart rate. With reduced SV, heart rate must rise to maintain output. Tachycardia appears BEFORE hypotension — by the time blood pressure drops, >30% of blood volume is lost." },
+        ]
+      },
+      fluid: {
+        label: "IV Fluid", Ees: 2.5, EDV: 150, Ea: 2.0, alpha: 0.02, color: "#1F6FEB",
+        highlight: "bottomright",
+        steps: [
+          { title: "Volume expansion", text: "IV fluid increases circulating volume → more venous return → the ventricle fills more. The loop slides right along the same ESPVR. Contractility and afterload don't change — this is a pure preload effect." },
+          { title: "Starling mechanism increases SV", text: "Greater filling stretch → more forceful contraction → Stroke Volume (SV) increases. The loop gets wider. The right side shifts right while the left side barely moves." },
+          { title: "Preload vs. inotropy distinction", text: "Compare with inotropes: fluid shifts the RIGHT side of the loop (more filling). Inotropes shift the LEFT side (better emptying). Both increase SV, but by moving opposite sides of the loop." },
+          { title: "Fluid responsiveness has limits", text: "On the steep part of the compliance curve, fluid helps. But past a certain point, more fluid just raises filling pressure without increasing SV → pulmonary edema. This is why passive leg raise and SVV testing matter." },
+        ]
+      },
+      inotrope: {
+        label: "Inotrope", Ees: 4.0, EDV: 120, Ea: 2.0, alpha: 0.02, color: "#BC8CFF",
+        highlight: "topleft",
+        steps: [
+          { title: "Contractility increases", text: "Dobutamine (β1 agonist) strengthens contraction. The ESPVR rotates upward — the contractile ceiling rises. The ventricle can now squeeze more completely at any given volume." },
+          { title: "Better emptying → wider loop", text: "The ventricle empties more completely → the left side of the loop shifts left. Filling volume stays roughly the same. Stroke Volume (SV) increases because the loop gets WIDER, not just shifted." },
+          { title: "Compare: preload vs. contractility", text: "IV Fluid: right side shifts right (more filling), left side stays → wider. Inotrope: left side shifts left (better emptying), right side stays → wider. Both increase SV by moving OPPOSITE sides of the loop." },
+          { title: "Clinical tradeoff", text: "Ejection Fraction (EF) improves. But inotropes increase myocardial oxygen demand and arrhythmia risk. They're a bridge — to surgery, recovery, or a ventricular assist device — not a long-term solution." },
+        ]
+      },
+    };
+
+    const NORM = SC.normal;
+    const normSt = computeState(NORM.Ees, NORM.EDV, NORM.Ea, NORM.alpha);
+
+    const W = 540, H = 420;
+    const PD = { t: 22, r: 22, b: 52, l: 56 };
+    const GW = W - PD.l - PD.r, GH = H - PD.t - PD.b;
+    const VMAX = 220, PMAX = 240;
+
+    function vX(v) { return PD.l + (v / VMAX) * GW; }
+    function pY(p) { return PD.t + GH - (Math.max(0, Math.min(p, PMAX)) / PMAX) * GH; }
+
+    function makeLoop(st, Ees, alpha) {
+      const { EDV, ESV, ESP, LVEDP, esvP0 } = st;
+      const pts = [];
+      for (let i = 0; i <= 20; i++) {
+        const v = ESV + (EDV - ESV) * (i / 20);
+        const p = edpvr(v, alpha);
+        pts.push([v, Math.min(p, 60)]);
+      }
+      for (let i = 0; i <= 12; i++) {
+        const f = i / 12;
+        const p = Math.min(LVEDP, 60) + (ESP - Math.min(LVEDP, 60)) * f;
+        pts.push([EDV, p]);
+      }
+      for (let i = 0; i <= 20; i++) {
+        const f = i / 20;
+        const v = EDV - (EDV - ESV) * f;
+        const straightP = ESP;
+        const peakBow = 8;
+        const bow = peakBow * Math.sin(f * Math.PI);
+        const espvrAtV = espvr(v, Ees);
+        const p = Math.min(straightP + bow, espvrAtV + 5);
+        pts.push([v, Math.max(p, ESP - 15)]);
+      }
+      for (let i = 0; i <= 12; i++) {
+        const f = i / 12;
+        const p = ESP - (ESP - Math.min(esvP0, 30)) * f;
+        pts.push([ESV, p]);
+      }
+      return pts.map(([v, p]) => `${vX(v).toFixed(1)},${pY(p).toFixed(1)}`).join(" ");
+    }
+
+    function makeCurve(type, param) {
+      const pts = [];
+      for (let v = (type === "espvr" ? V0 : 0); v <= 210; v += 2) {
+        const p = type === "espvr" ? espvr(v, param) : edpvr(v, param);
+        if (p > PMAX + 10) break;
+        if (type === "edpvr" && p > 65) break;
+        pts.push(`${vX(v).toFixed(1)},${pY(p).toFixed(1)}`);
+      }
+      return pts.join(" ");
+    }
+
+    function D({ val, reference }) {
+      const d = val - reference;
+      if (Math.abs(d) < 0.5) return null;
+      return <span style={{ fontSize: 9, marginLeft: 2, color: d > 0 ? "#F85149" : "#58A6FF", fontWeight: 800 }}>{d > 0 ? "▲" : "▼"}</span>;
+    }
+
+    function getHL(key, pv) {
+      if (!key) return null;
+      const m = {
+        topleft: { cx: vX(pv.ESV), cy: pY(pv.ESP), label: "End-systolic point" },
+        bottomright: { cx: vX(pv.EDV), cy: pY(Math.min(pv.LVEDP, 50)), label: "Preload (EDV)" },
+        topright: { cx: vX(pv.EDV), cy: pY(pv.ESP), label: "Peak pressure" },
+      };
+      return m[key] || null;
+    }
+
+    function PVLoop() {
+      const [scKey, setScKey] = useState("normal");
+      const [step, setStep] = useState(0);
+      const [sl, setSl] = useState({ Ees: 2.5, EDV: 120, Ea: 2.0, alpha: 0.02, _eaMoved: false });
+      const [mode, setMode] = useState("scenario");
+
+      const sc = SC[scKey];
+      const pv = useMemo(() => {
+        if (mode === "scenario") return computeState(sc.Ees, sc.EDV, sc.Ea, sc.alpha);
+        if (sl._eaMoved) return computeState(sl.Ees, sl.EDV, sl.Ea, sl.alpha);
+        return computePinned(sl.Ees, sl.EDV, sl.alpha, normSt.ESP, normSt.LVEDP);
+      }, [mode, sc, sl]);
+      const pm = mode === "scenario" ? sc : { Ees: sl.Ees, EDV: pv.EDV, Ea: sl.Ea, alpha: sl.alpha };
+
+      const loop = useMemo(() => makeLoop(pv, pm.Ees, pm.alpha), [pv, pm.Ees, pm.alpha]);
+      const nLoop = useMemo(() => makeLoop(normSt, NORM.Ees, NORM.alpha), []);
+      const espL = useMemo(() => makeCurve("espvr", pm.Ees), [pm.Ees]);
+      const edpL = useMemo(() => makeCurve("edpvr", pm.alpha), [pm.alpha]);
+      const nEspL = useMemo(() => makeCurve("espvr", NORM.Ees), []);
+      const nEdpL = useMemo(() => makeCurve("edpvr", NORM.alpha), []);
+
+      const col = mode === "scenario" ? sc.color : "#58A6FF";
+      const showRef = mode === "scenario" ? scKey !== "normal" : true;
+      const steps = sc.steps;
+      const nSteps = steps.length;
+      const hl = mode === "scenario" ? getHL(sc.highlight, pv) : null;
+
+      const pickSc = useCallback((k) => { setScKey(k); setStep(0); setMode("scenario"); }, []);
+      
+      const slide = useCallback((k, v) => {
+        if (mode === "scenario") {
+          const snap = SC[scKey];
+          setSl({ Ees: snap.Ees, EDV: snap.EDV, Ea: snap.Ea, alpha: snap.alpha, _eaMoved: k === "Ea", [k]: v });
+        } else {
+          setSl(prev => ({ ...prev, _eaMoved: k === "Ea" ? true : prev._eaMoved, [k]: v }));
+        }
+        setMode("manual");
+      }, [mode, scKey]);
+
+      const vTicks = [0, 50, 100, 150, 200];
+      const pTicks = [0, 50, 100, 150, 200];
+      const dispLVEDP = Math.min(pv.LVEDP, 50);
+
+      const groups = [
+        { label: "Conditions", keys: ["normal", "hfref", "hfpef"] },
+        { label: "Valvular", keys: ["as", "ar", "ms", "mr"] },
+        { label: "Acute", keys: ["hemorrhage", "fluid", "inotrope"] },
+      ];
+
+      return (
+        <div style={{ background: "#0D1117", color: "#C9D1D9", minHeight: "100vh", fontFamily: "'JetBrains Mono','SF Mono','Fira Code',monospace", padding: "8px 8px 20px" }}>
+          <div style={{ maxWidth: 580, margin: "0 auto" }}>
+
+            <div style={{ textAlign: "center", marginBottom: 8 }}>
+              <h1 style={{ fontSize: 15, fontWeight: 700, color: "#E6EDF3", margin: 0, letterSpacing: 1.5, textTransform: "uppercase" }}>Pressure–Volume Loop</h1>
+              <div style={{ fontSize: 9, color: "#484F58", marginTop: 2 }}>ESPVR & EDPVR control the boundaries · The loop is emergent</div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
+              {groups.map(g => (
+                <div key={g.label} style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 8, color: "#484F58", width: 62, textAlign: "right", flexShrink: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>{g.label}</span>
+                  {g.keys.map(k => {
+                    const s = SC[k]; const on = scKey === k && mode === "scenario";
+                    return <button key={k} onClick={() => pickSc(k)} style={{
+                      padding: "3px 9px", fontSize: 10, fontWeight: on ? 700 : 400,
+                      background: on ? s.color + "20" : "transparent", color: on ? s.color : "#6E7681",
+                      border: `1px solid ${on ? s.color + "55" : "#21262D"}`,
+                      borderRadius: 3, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
+                    }}>{s.label}</button>;
+                  })}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: "#0D1117", border: "1px solid #21262D", borderRadius: 6, padding: 4, position: "relative" }}>
+              <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", display: "block" }}>
+                {vTicks.map(v => <line key={`vg${v}`} x1={vX(v)} y1={PD.t} x2={vX(v)} y2={PD.t + GH} stroke="#161B22" strokeWidth={1} />)}
+                {pTicks.map(p => <line key={`pg${p}`} x1={PD.l} y1={pY(p)} x2={PD.l + GW} y2={pY(p)} stroke="#161B22" strokeWidth={1} />)}
+                <line x1={PD.l} y1={PD.t} x2={PD.l} y2={PD.t + GH} stroke="#30363D" strokeWidth={1.5} />
+                <line x1={PD.l} y1={PD.t + GH} x2={PD.l + GW} y2={PD.t + GH} stroke="#30363D" strokeWidth={1.5} />
+                {vTicks.map(v => <text key={`vl${v}`} x={vX(v)} y={PD.t + GH + 16} textAnchor="middle" fill="#484F58" fontSize={10} fontFamily="inherit">{v}</text>)}
+                {pTicks.map(p => <text key={`pl${p}`} x={PD.l - 8} y={pY(p) + 4} textAnchor="end" fill="#484F58" fontSize={10} fontFamily="inherit">{p}</text>)}
+                <text x={PD.l + GW / 2} y={H - 4} textAnchor="middle" fill="#6E7681" fontSize={11} fontFamily="inherit">Volume (mL)</text>
+                <text x={14} y={PD.t + GH / 2} textAnchor="middle" fill="#6E7681" fontSize={11} fontFamily="inherit" transform={`rotate(-90,14,${PD.t + GH / 2})`}>Pressure (mmHg)</text>
+
+                {showRef && <>
+                  <polyline points={nEspL} fill="none" stroke="#8B949E" strokeWidth={1.2} strokeDasharray="5,3" opacity={0.5} />
+                  <polyline points={nEdpL} fill="none" stroke="#8B949E" strokeWidth={1.2} strokeDasharray="5,3" opacity={0.5} />
+                  <polygon points={nLoop} fill="#8B949E" fillOpacity={0.06} stroke="#8B949E" strokeWidth={1.8} strokeDasharray="4,3" opacity={0.55} />
+                  <text x={vX(normSt.EDV) + 5} y={pY(normSt.ESP) + 14} fill="#8B949E" fontSize={10} fontFamily="inherit" fontWeight={600} opacity={0.7}>Normal</text>
+                </>}
+
+                <polyline points={espL} fill="none" stroke={col} strokeWidth={1.5} opacity={0.45} strokeDasharray="6,3" />
+                <polyline points={edpL} fill="none" stroke={col} strokeWidth={1.5} opacity={0.45} strokeDasharray="6,3" />
+
+                {(() => { const lv = V0 + Math.min(90 / pm.Ees, 45), lp = espvr(lv, pm.Ees); return lp > 10 && lp < PMAX - 20 ? <text x={vX(lv) + 3} y={pY(lp) - 5} fill={col} fontSize={9} opacity={0.6} fontFamily="inherit" fontWeight={600}>ESPVR</text> : null; })()}
+                {(() => { let v2 = 170, p2 = edpvr(v2, pm.alpha); if (p2 > 50) { v2 = 140; p2 = edpvr(v2, pm.alpha); } if (p2 > 50) { v2 = 110; p2 = edpvr(v2, pm.alpha); } return p2 > 1 && p2 < 60 ? <text x={vX(v2) + 3} y={pY(p2) - 5} fill={col} fontSize={9} opacity={0.6} fontFamily="inherit" fontWeight={600}>EDPVR</text> : null; })()}
+
+                <line x1={vX(pv.EDV)} y1={pY(0)} x2={vX(pv.ESV)} y2={pY(pv.ESP)} stroke="#E3B341" strokeWidth={1.2} strokeDasharray="3,3" opacity={0.5} />
+                <text x={vX(pv.EDV) + 4} y={pY(2)} fill="#E3B341" fontSize={8} opacity={0.55} fontFamily="inherit">Ea</text>
+
+                <polygon points={loop} fill={col} fillOpacity={0.1} stroke={col} strokeWidth={2.2} strokeLinejoin="round" />
+
+                <circle cx={vX(pv.EDV)} cy={pY(Math.min(pv.LVEDP, 50))} r={3} fill={col} opacity={0.7} />
+                <circle cx={vX(pv.ESV)} cy={pY(pv.ESP)} r={3} fill={col} opacity={0.7} />
+                <circle cx={vX(pv.EDV)} cy={pY(pv.ESP)} r={3} fill={col} opacity={0.4} />
+                <circle cx={vX(pv.ESV)} cy={pY(Math.min(pv.esvP0, 30))} r={3} fill={col} opacity={0.4} />
+
+                <text x={vX(pv.EDV) + 7} y={pY((Math.min(pv.LVEDP, 50) + pv.ESP) / 2)} fill="#6E7681" fontSize={9} fontFamily="inherit" fontWeight={600}>b</text>
+                <text x={vX((pv.EDV + pv.ESV) / 2)} y={pY(pv.ESP) - 7} fill="#6E7681" fontSize={9} textAnchor="middle" fontFamily="inherit" fontWeight={600}>c</text>
+                <text x={vX(pv.ESV) - 8} y={pY((pv.ESP + Math.min(pv.esvP0, 30)) / 2)} fill="#6E7681" fontSize={9} textAnchor="end" fontFamily="inherit" fontWeight={600}>d</text>
+                <text x={vX((pv.EDV + pv.ESV) / 2)} y={pY(Math.min(edpvr((pv.EDV + pv.ESV) / 2, pm.alpha), 50)) + 15} fill="#6E7681" fontSize={9} textAnchor="middle" fontFamily="inherit" fontWeight={600}>a</text>
+
+                <line x1={vX(pv.ESV)} y1={pY(-8)} x2={vX(pv.EDV)} y2={pY(-8)} stroke={col} strokeWidth={1} opacity={0.5} />
+                <text x={vX((pv.ESV + pv.EDV) / 2)} y={pY(-16)} fill={col} fontSize={9} textAnchor="middle" fontFamily="inherit" opacity={0.65}>SV = {Math.round(pv.SV)} mL</text>
+
+                {hl && <>
+                  <circle cx={hl.cx} cy={hl.cy} r={14} fill="none" stroke="#E3B341" strokeWidth={2.5} opacity={0.85}>
+                    <animate attributeName="r" values="12;16;12" dur="2s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.9;0.4;0.9" dur="2s" repeatCount="indefinite" />
+                  </circle>
+                  <text x={hl.cx} y={hl.cy - 20} fill="#E3B341" fontSize={8} textAnchor="middle" fontFamily="inherit" fontWeight={600}>{hl.label}</text>
+                </>}
+              </svg>
+              <div style={{ position: "absolute", top: 8, right: 10, fontSize: 8, color: "#30363D", lineHeight: 1.6 }}>
+                <div>a = filling · b = isovolum. contraction</div>
+                <div>c = ejection · d = isovolum. relaxation</div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 3, margin: "6px 0", padding: "6px", background: "#161B22", borderRadius: 4, border: "1px solid #21262D" }}>
+              {[
+                { l: "EDV", v: pv.EDV, u: "mL", r: normSt.EDV },
+                { l: "LVEDP", v: dispLVEDP, u: "mmHg", r: normSt.LVEDP },
+                { l: "ESV", v: pv.ESV, u: "mL", r: normSt.ESV },
+                { l: "Afterload", v: pv.ESP, u: "mmHg", r: normSt.ESP },
+                { l: "Stroke Vol", v: pv.SV, u: "mL", r: normSt.SV },
+                { l: "Ejection Fr", v: pv.EF, u: "%", r: normSt.EF },
+              ].map(({ l, v, u, r }) => (
+                <div key={l} style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: 7, color: "#484F58", textTransform: "uppercase", letterSpacing: 0.5 }}>{l}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "#E6EDF3" }}>
+                    {v >= 100 ? Math.round(v) : Number(v).toFixed(1)}<D val={v} reference={r} />
+                  </div>
+                  <div style={{ fontSize: 7, color: "#30363D" }}>{u}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, margin: "4px 0", padding: "8px", background: "#161B22", borderRadius: 4, border: "1px solid #21262D" }}>
+              {[
+                { key: "Ees", label: "Contractility (Ees)", min: 0.5, max: 5, step: 0.1 },
+                { key: "EDV", label: "Preload (EDV)", min: 60, max: 180, step: 2 },
+                { key: "Ea", label: "Afterload (Ea)", min: 0.5, max: 4, step: 0.1 },
+                { key: "alpha", label: "Compliance (α)", min: 0.005, max: 0.04, step: 0.001 },
+              ].map(({ key, label, min, max, step: s }) => {
+                const val = mode === "scenario" ? (sc[key] ?? NORM[key]) : sl[key];
+                return (
+                  <div key={key}>
+                    <div style={{ fontSize: 8, color: "#8B949E", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                    <input type="range" min={min} max={max} step={s} value={val}
+                      onChange={e => slide(key, parseFloat(e.target.value))}
+                      style={{ width: "100%", accentColor: col, height: 4 }} />
+                    <div style={{ fontSize: 10, color: "#E6EDF3", fontWeight: 600, textAlign: "center" }}>
+                      {key === "alpha" ? val.toFixed(3) : Number(val).toFixed(1)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {steps && mode === "scenario" && (
+              <div style={{ background: "#161B22", border: `1px solid ${col}22`, borderRadius: 4, padding: "10px 12px", marginTop: 6 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: col }}>
+                    {sc.label}{scKey !== "normal" ? " — Mechanism" : " — How It Works"}
+                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <button onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0} style={{
+                      padding: "2px 10px", fontSize: 11, fontWeight: 600,
+                      background: step === 0 ? "#0D1117" : col + "18", color: step === 0 ? "#30363D" : col,
+                      border: `1px solid ${step === 0 ? "#21262D" : col + "44"}`,
+                      borderRadius: 3, cursor: step === 0 ? "default" : "pointer", fontFamily: "inherit",
+                    }}>← Prev</button>
+                    <span style={{ fontSize: 10, color: "#6E7681", minWidth: 32, textAlign: "center" }}>{step + 1}/{nSteps}</span>
+                    <button onClick={() => setStep(s => Math.min(nSteps - 1, s + 1))} disabled={step === nSteps - 1} style={{
+                      padding: "2px 10px", fontSize: 11, fontWeight: 600,
+                      background: step === nSteps - 1 ? "#0D1117" : col + "18", color: step === nSteps - 1 ? "#30363D" : col,
+                      border: `1px solid ${step === nSteps - 1 ? "#21262D" : col + "44"}`,
+                      borderRadius: 3, cursor: step === nSteps - 1 ? "default" : "pointer", fontFamily: "inherit",
+                    }}>Next →</button>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                  {steps.map((_, i) => (
+                    <div key={i} onClick={() => setStep(i)} style={{
+                      flex: 1, height: 3, borderRadius: 2, cursor: "pointer",
+                      background: i <= step ? col : "#21262D", transition: "background 0.2s",
+                    }} />
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#E6EDF3", marginBottom: 4 }}>{steps[step].title}</div>
+                <div style={{ fontSize: 11, color: "#8B949E", lineHeight: 1.7, minHeight: 48 }}>{steps[step].text}</div>
+              </div>
+            )}
+
+            {mode === "manual" && (
+              <div style={{ background: "#161B22", border: "1px solid #21262D", borderRadius: 4, padding: "8px 12px", marginTop: 6, fontSize: 10, color: "#6E7681", lineHeight: 1.6 }}>
+                <strong style={{ color: "#E6EDF3" }}>Manual mode — independent effects (cf025)</strong><br />
+                Afterload (Ea) is held at 2.0 unless you move the Ea slider. ESP stays ~120 mmHg.<br />
+                • <strong style={{ color: "#BC8CFF" }}>Ees</strong>: rotates ESPVR → left side of loop moves (ESV changes), right side stays<br />
+                • <strong style={{ color: "#1F6FEB" }}>EDV</strong>: slides along same ESPVR → right side moves, left side stays<br />
+                • <strong style={{ color: "#A371F7" }}>Ea</strong>: changes afterload → ESP rises/falls, ESV changes<br />
+                • <strong style={{ color: "#F0883E" }}>α</strong>: compliance — stiffer wall fills to smaller EDV at same filling pressure
+              </div>
+            )}
+
+            <div style={{ fontSize: 7, color: "#21262D", textAlign: "center", marginTop: 8 }}>Dr. Ian Murray · CC BY-NC-SA · Sagawa/Suga · CVPhysiology cf025/cf026</div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PVLoop />);
+  </script>
+
+</body></html>
