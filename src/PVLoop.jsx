@@ -471,8 +471,8 @@ export default function PVLoop() {
       const refESP = normSt.ESP;
       const maxEDV = sl.alpha > 0.001 ? Math.log(refESP / A_ED + 1) / sl.alpha : effEDV;
       const clampedEDV = Math.min(effEDV, maxEDV);
-      const ESV = Math.max(V0 + 1, Math.min(refESP / sl.Ees + V0, clampedEDV - 1));
-      const ESP = refESP;
+      const ESP = Math.min(refESP, sl.Ees * (clampedEDV - V0));
+      const ESV = Math.max(V0 + 1, Math.min(ESP / sl.Ees + V0, clampedEDV - 1));
       const SV = clampedEDV - ESV;
       const EF = (SV / clampedEDV) * 100;
       const LVEDP = A_ED * (Math.exp(sl.alpha * clampedEDV) - 1);
@@ -481,12 +481,13 @@ export default function PVLoop() {
     }
     // Ees or EDV slider: pin ESP at reference value
     const refESP = normSt.ESP;
-    // ESV from ESPVR: ESP = Ees*(ESV-V0) → ESV = ESP/Ees + V0
-    const ESV = Math.max(V0 + 1, Math.min(refESP / sl.Ees + V0, sl.EDV - 1));
     // Clamp EDV so LVEDP never exceeds ESP (prevents inverted loop)
     const maxEDV = sl.alpha > 0.001 ? Math.log(refESP / A_ED + 1) / sl.alpha : sl.EDV;
     const EDV = Math.min(sl.EDV, maxEDV);
-    const ESP = refESP;
+    // Clamp ESP if ESPVR can't reach pinned value at this EDV
+    const ESP = Math.min(refESP, sl.Ees * (EDV - V0));
+    // ESV from ESPVR: ESP = Ees*(ESV-V0) → ESV = ESP/Ees + V0
+    const ESV = Math.max(V0 + 1, Math.min(ESP / sl.Ees + V0, EDV - 1));
     const SV = EDV - ESV;
     const EF = (SV / EDV) * 100;
     const LVEDP = A_ED * (Math.exp(sl.alpha * EDV) - 1);
