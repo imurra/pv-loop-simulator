@@ -30,9 +30,9 @@ const V0 = 10,
 function getEffectiveEDV(sliderEDV, alpha) {
   if (Math.abs(alpha - REF_ALPHA) < 0.001) return sliderEDV;
   const refLVEDP = A_ED * (Math.exp(REF_ALPHA * sliderEDV) - 1);
-  if (alpha <= 0.001) return Math.min(sliderEDV * 1.3, 200);
+  if (alpha <= 0.001) return Math.min(sliderEDV * 1.3, 220);
   const edv = Math.log(refLVEDP / A_ED + 1) / alpha;
-  return Math.max(50, Math.min(edv, 200));
+  return Math.max(50, Math.min(edv, 220));
 }
 
 function computeState(Ees, EDV, Ea, alpha) {
@@ -363,20 +363,20 @@ function pY(p) {
   return PD.t + GH - (Math.max(0, Math.min(p, PMAX)) / PMAX) * GH;
 }
 
-// ORIGINAL v1 loop generation — restored exactly
+// Loop generation — filling phase traces EDPVR exactly (no cap)
 function makeLoop(st, Ees, alpha) {
   const { EDV, ESV, ESP, LVEDP, esvP0 } = st;
   const pts = [];
-  // Phase a: diastolic filling along EDPVR
+  // Phase a: diastolic filling along EDPVR — traces curve exactly
   for (let i = 0; i <= 20; i++) {
     const v = ESV + (EDV - ESV) * (i / 20);
     const p = edpvr(v, alpha);
-    pts.push([v, Math.min(p, 60)]);
+    pts.push([v, p]);
   }
   // Phase b: isovolumetric contraction
   for (let i = 0; i <= 12; i++) {
     const f = i / 12;
-    const p = Math.min(LVEDP, 60) + (ESP - Math.min(LVEDP, 60)) * f;
+    const p = LVEDP + (ESP - LVEDP) * f;
     pts.push([EDV, p]);
   }
   // Phase c: ejection — slight arc above ESP, respecting ESPVR
@@ -393,7 +393,7 @@ function makeLoop(st, Ees, alpha) {
   // Phase d: isovolumetric relaxation
   for (let i = 0; i <= 12; i++) {
     const f = i / 12;
-    const p = ESP - (ESP - Math.min(esvP0, 30)) * f;
+    const p = ESP - (ESP - esvP0) * f;
     pts.push([ESV, p]);
   }
   return pts
@@ -435,7 +435,7 @@ function getHL(key, pv) {
     topleft: { cx: vX(pv.ESV), cy: pY(pv.ESP), label: "End-systolic point" },
     bottomright: {
       cx: vX(pv.EDV),
-      cy: pY(Math.min(pv.LVEDP, 50)),
+      cy: pY(pv.LVEDP),
       label: "Preload (EDV)",
     },
     topright: { cx: vX(pv.EDV), cy: pY(pv.ESP), label: "Peak pressure" },
@@ -452,7 +452,7 @@ export default function PVLoop() {
     EDV: 120,
     Ea: 2.0,
     alpha: 0.02,
-    _eaMoved: false,
+    _last: null,
   });
   const [mode, setMode] = useState("scenario");
 
@@ -462,9 +462,37 @@ export default function PVLoop() {
   const pv = useMemo(() => {
     if (mode === "scenario")
       return computeState(sc.Ees, sc.EDV, sc.Ea, sc.alpha);
-    if (sl._eaMoved) return computeState(sl.Ees, sl.EDV, sl.Ea, sl.alpha);
-    return computePinned(sl.Ees, sl.EDV, sl.alpha, normSt.ESP, normSt.LVEDP);
-  }, [mode, sc, sl, normSt.ESP, normSt.LVEDP]);
+    // Ea slider: full computeState, ESP floats
+    if (sl._last === "Ea")
+      return computeState(sl.Ees, sl.EDV, sl.Ea, sl.alpha);
+    // Alpha slider: stiffer wall → less filling, ESP pinned
+    if (sl._last === "alpha") {
+      const effEDV = getEffectiveEDV(sl.EDV, sl.alpha);
+      const refESP = normSt.ESP;
+      const maxEDV = sl.alpha > 0.001 ? Math.log(refESP / A_ED + 1) / sl.alpha : effEDV;
+      const clampedEDV = Math.min(effEDV, maxEDV);
+      const ESV = Math.max(V0 + 1, Math.min(refESP / sl.Ees + V0, clampedEDV - 1));
+      const ESP = refESP;
+      const SV = clampedEDV - ESV;
+      const EF = (SV / clampedEDV) * 100;
+      const LVEDP = A_ED * (Math.exp(sl.alpha * clampedEDV) - 1);
+      const esvP0 = A_ED * (Math.exp(sl.alpha * ESV) - 1);
+      return { EDV: clampedEDV, ESV, ESP, SV, EF, LVEDP, esvP0 };
+    }
+    // Ees or EDV slider: pin ESP at reference value
+    const refESP = normSt.ESP;
+    // ESV from ESPVR: ESP = Ees*(ESV-V0) → ESV = ESP/Ees + V0
+    const ESV = Math.max(V0 + 1, Math.min(refESP / sl.Ees + V0, sl.EDV - 1));
+    // Clamp EDV so LVEDP never exceeds ESP (prevents inverted loop)
+    const maxEDV = sl.alpha > 0.001 ? Math.log(refESP / A_ED + 1) / sl.alpha : sl.EDV;
+    const EDV = Math.min(sl.EDV, maxEDV);
+    const ESP = refESP;
+    const SV = EDV - ESV;
+    const EF = (SV / EDV) * 100;
+    const LVEDP = A_ED * (Math.exp(sl.alpha * EDV) - 1);
+    const esvP0 = A_ED * (Math.exp(sl.alpha * ESV) - 1);
+    return { EDV, ESV, ESP, SV, EF, LVEDP, esvP0 };
+  }, [mode, sc, sl]);
   const pm =
     mode === "scenario"
       ? sc
@@ -501,13 +529,13 @@ export default function PVLoop() {
           EDV: snap.EDV,
           Ea: snap.Ea,
           alpha: snap.alpha,
-          _eaMoved: k === "Ea",
+          _last: k,
           [k]: v,
         });
       } else {
         setSl((prev) => ({
           ...prev,
-          _eaMoved: k === "Ea" ? true : prev._eaMoved,
+          _last: k,
           [k]: v,
         }));
       }
@@ -518,7 +546,6 @@ export default function PVLoop() {
 
   const vTicks = [0, 50, 100, 150, 200];
   const pTicks = [0, 50, 100, 150, 200];
-  const dispLVEDP = Math.min(pv.LVEDP, 50);
 
   const groups = [
     { label: "Conditions", keys: ["normal", "hfref", "hfpef"] },
@@ -853,7 +880,7 @@ export default function PVLoop() {
             {/* Corner dots */}
             <circle
               cx={vX(pv.EDV)}
-              cy={pY(Math.min(pv.LVEDP, 50))}
+              cy={pY(pv.LVEDP)}
               r={3}
               fill={col}
               opacity={0.7}
@@ -874,7 +901,7 @@ export default function PVLoop() {
             />
             <circle
               cx={vX(pv.ESV)}
-              cy={pY(Math.min(pv.esvP0, 30))}
+              cy={pY(pv.esvP0)}
               r={3}
               fill={col}
               opacity={0.4}
@@ -883,7 +910,7 @@ export default function PVLoop() {
             {/* Phase labels */}
             <text
               x={vX(pv.EDV) + 7}
-              y={pY((Math.min(pv.LVEDP, 50) + pv.ESP) / 2)}
+              y={pY((pv.LVEDP + pv.ESP) / 2)}
               fill="#6E7681"
               fontSize={9}
               fontFamily="inherit"
@@ -904,7 +931,7 @@ export default function PVLoop() {
             </text>
             <text
               x={vX(pv.ESV) - 8}
-              y={pY((pv.ESP + Math.min(pv.esvP0, 30)) / 2)}
+              y={pY((pv.ESP + pv.esvP0) / 2)}
               fill="#6E7681"
               fontSize={9}
               textAnchor="end"
@@ -915,7 +942,7 @@ export default function PVLoop() {
             </text>
             <text
               x={vX((pv.EDV + pv.ESV) / 2)}
-              y={pY(Math.min(edpvr((pv.EDV + pv.ESV) / 2, pm.alpha), 50)) + 15}
+              y={pY(edpvr((pv.EDV + pv.ESV) / 2, pm.alpha)) + 15}
               fill="#6E7681"
               fontSize={9}
               textAnchor="middle"
@@ -1001,47 +1028,6 @@ export default function PVLoop() {
           </div>
         </div>
 
-        {/* Readouts */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(6, 1fr)",
-            gap: 3,
-            margin: "6px 0",
-            padding: "6px",
-            background: "#161B22",
-            borderRadius: 4,
-            border: "1px solid #21262D",
-          }}
-        >
-          {[
-            { l: "EDV", v: pv.EDV, u: "mL", r: normSt.EDV },
-            { l: "LVEDP", v: dispLVEDP, u: "mmHg", r: normSt.LVEDP },
-            { l: "ESV", v: pv.ESV, u: "mL", r: normSt.ESV },
-            { l: "Afterload", v: pv.ESP, u: "mmHg", r: normSt.ESP },
-            { l: "Stroke Vol", v: pv.SV, u: "mL", r: normSt.SV },
-            { l: "Ejection Fr", v: pv.EF, u: "%", r: normSt.EF },
-          ].map(({ l, v, u, r }) => (
-            <div key={l} style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontSize: 7,
-                  color: "#484F58",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5,
-                }}
-              >
-                {l}
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#E6EDF3" }}>
-                {v >= 100 ? Math.round(v) : Number(v).toFixed(1)}
-                <D val={v} reference={r} />
-              </div>
-              <div style={{ fontSize: 7, color: "#30363D" }}>{u}</div>
-            </div>
-          ))}
-        </div>
-
         {/* Sliders */}
         <div
           style={{
@@ -1063,7 +1049,7 @@ export default function PVLoop() {
               max: 5,
               step: 0.1,
             },
-            { key: "EDV", label: "Preload (EDV)", min: 60, max: 180, step: 2 },
+            { key: "EDV", label: "Preload (EDV)", min: 60, max: 220, step: 2 },
             { key: "Ea", label: "Afterload (Ea)", min: 0.5, max: 4, step: 0.1 },
             {
               key: "alpha",
@@ -1240,16 +1226,16 @@ export default function PVLoop() {
               Manual mode — independent effects (cf025)
             </strong>
             <br />
-            Afterload (Ea) is held at 2.0 unless you move the Ea slider. ESP
-            stays ~120 mmHg.
-            <br />• <strong style={{ color: "#BC8CFF" }}>Ees</strong>: rotates
+            Each slider isolates a single variable for teaching purposes. In
+            vivo, these parameters are interdependent.
+            <br />• <strong style={{ color: "#BC8CFF" }}>Contractility</strong>: rotates
             ESPVR → left side of loop moves (ESV changes), right side stays
-            <br />• <strong style={{ color: "#1F6FEB" }}>EDV</strong>: slides
+            <br />• <strong style={{ color: "#1F6FEB" }}>Preload</strong>: slides
             along same ESPVR → right side moves, left side stays
-            <br />• <strong style={{ color: "#A371F7" }}>Ea</strong>: changes
-            afterload → ESP rises/falls, ESV changes
-            <br />• <strong style={{ color: "#F0883E" }}>α</strong>: compliance
-            — stiffer wall fills to smaller EDV at same filling pressure
+            <br />• <strong style={{ color: "#A371F7" }}>Afterload (ESP)</strong>: the
+            b/c intersection → ESP rises/falls, ESV changes
+            <br />• <strong style={{ color: "#F0883E" }}>Compliance</strong>: rotates
+            EDPVR → stiffer wall fills to smaller EDV at same filling pressure
           </div>
         )}
 
