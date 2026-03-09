@@ -128,10 +128,10 @@ const SC = {
   },
   hfpef: {
     label: "HFpEF",
-    Ees: 3.0,
-    EDV: 105,
-    Ea: 2.2,
-    alpha: 0.035,
+    Ees: 2.5,
+    EDV: 112,
+    Ea: 2.0,
+    alpha: 0.033,
     color: "#F0883E",
     highlight: "bottomright",
     steps: [
@@ -155,7 +155,7 @@ const SC = {
   },
   as: {
     label: "Aortic Stenosis",
-    Ees: 3.0,
+    Ees: 2.5,
     EDV: 130,
     Ea: 3.5,
     alpha: 0.02,
@@ -187,7 +187,7 @@ const SC = {
     Ea: 1.5,
     alpha: 0.018,
     color: "#D2A8FF",
-    highlight: "bottomright",
+    highlight: "topleft",
     steps: [
       {
         title: "Backward leak during diastole",
@@ -238,7 +238,7 @@ const SC = {
     label: "Mitral Regurg",
     Ees: 2.5,
     EDV: 160,
-    Ea: 1.2,
+    Ea: 0.8,
     alpha: 0.02,
     color: "#3FB950",
     highlight: "topleft",
@@ -263,7 +263,7 @@ const SC = {
   },
   hemorrhage: {
     label: "Hemorrhage",
-    Ees: 2.8,
+    Ees: 2.5,
     EDV: 85,
     Ea: 2.5,
     alpha: 0.02,
@@ -457,8 +457,8 @@ export default function PVLoop() {
   const [mode, setMode] = useState("scenario");
 
   const sc = SC[scKey];
-  // Manual mode: ESP and LVEDP pinned at normal values for Ees/EDV/alpha sliders.
-  // Only the Ea slider lets ESP float.
+  // Manual mode: per-slider behavior for independent effects teaching.
+  // Ea: ESP floats. EDV: Starling (computeState). Ees: ESP pinned. Alpha: ESP pinned, EDV shifts.
   const pv = useMemo(() => {
     if (mode === "scenario")
       return computeState(sc.Ees, sc.EDV, sc.Ea, sc.alpha);
@@ -479,7 +479,15 @@ export default function PVLoop() {
       const esvP0 = A_ED * (Math.exp(sl.alpha * ESV) - 1);
       return { EDV: clampedEDV, ESV, ESP, SV, EF, LVEDP, esvP0 };
     }
-    // Ees or EDV slider: pin ESP at reference value
+    // EDV slider: full computeState (Starling — rides up ESPVR)
+    if (sl._last === "EDV") {
+      // Clamp EDV so LVEDP never exceeds ESP (prevents inverted loop)
+      const trial = computeState(sl.Ees, sl.EDV, sl.Ea, sl.alpha);
+      if (trial.LVEDP < trial.ESP) return trial;
+      const maxEDV = sl.alpha > 0.001 ? Math.log(trial.ESP / A_ED + 1) / sl.alpha : sl.EDV;
+      return computeState(sl.Ees, Math.min(sl.EDV, maxEDV), sl.Ea, sl.alpha);
+    }
+    // Ees slider: pin ESP at reference value
     const refESP = normSt.ESP;
     // Clamp EDV so LVEDP never exceeds ESP (prevents inverted loop)
     const maxEDV = sl.alpha > 0.001 ? Math.log(refESP / A_ED + 1) / sl.alpha : sl.EDV;
