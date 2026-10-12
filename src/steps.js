@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Ian V.J. Murray. Licensed under CC BY-NC-ND 4.0 (citation
+// required, non-commercial use only, no modified versions). See LICENSE.
 // Walkthrough text for each scenario. Every quantitative claim here is
 // checked against the model in tests/model.test.mjs ("text claims").
 export const STEPS = {

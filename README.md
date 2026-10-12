@@ -38,4 +38,21 @@ The end-systolic pressure–volume relationship (ESPVR, slope Ees) and the end-d
 
 Full methods, parameter choices, limits, and verification are in the v2 technical report.
 
-Dr. Ian Murray · CC BY-NC-SA
+## How to cite (required)
+
+Any use, display, or sharing of this simulator, including screenshots, recordings, slides, and course pages, must cite it:
+
+> Murray IVJ. PV Loop Simulator (Version 2.0) [Interactive simulation]. 2026. Available at: https://imurra.github.io/pv-loop-simulator/
+
+Use the **Cite this repository** button on GitHub for APA or BibTeX formats.
+
+## License
+
+© 2026 Ian V.J. Murray. Licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/). See [LICENSE](LICENSE) for the full terms.
+
+- **Citation required** for every use.
+- **Non-commercial use only.** No commercial test prep, paid courses or platforms, paid apps, or advertising-supported products without written permission.
+- **No modified versions.** Altered, rebranded, translated, or partial copies may not be shared or hosted.
+- Any other use requires prior written permission from the author.
+
+This is a teaching tool, not a clinical model. Do not use it for clinical decisions.

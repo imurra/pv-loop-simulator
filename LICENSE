@@ -1,0 +1,59 @@
+PV Loop Simulator
+Copyright (c) 2026 Ian V.J. Murray. All rights reserved except as granted below.
+
+LICENSE
+
+This work, including the source code, the physiological model and its
+parameters, the walkthrough text, the graphics, the documentation, and the
+hosted simulator at https://imurra.github.io/pv-loop-simulator/, is licensed
+under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
+International License (CC BY-NC-ND 4.0).
+
+The full legal code, which governs, is at:
+https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode
+
+Summary: https://creativecommons.org/licenses/by-nc-nd/4.0/
+
+WHAT THIS MEANS
+
+1. CITATION IS REQUIRED. Any use, display, presentation, or sharing of this
+   work, in whole or in part (including screenshots, recordings, slides,
+   handouts, course pages, and publications), must give this citation and a
+   link to the license:
+
+     Murray IVJ. PV Loop Simulator (Version 2.0) [Interactive simulation].
+     2026. Available at: https://imurra.github.io/pv-loop-simulator/
+     License: CC BY-NC-ND 4.0.
+
+   A machine-readable citation is in CITATION.cff. You may not suggest that
+   the author endorses you or your use.
+
+2. NON-COMMERCIAL USE ONLY. You may not use this work for commercial
+   advantage or monetary compensation. Without written permission from the
+   author, this includes, for example: commercial test-preparation or board
+   review products; paid courses, subscriptions, or platforms; paid apps or
+   software; and any product or service that is sold, licensed, or supported
+   by advertising. Personal study and non-commercial teaching, with citation,
+   are permitted.
+
+3. NO MODIFIED VERSIONS. You may not share, publish, or host modified
+   versions of this work. This includes altered code or parameters,
+   re-skinned or rebranded copies, translations, partial copies of the model
+   or text, and copies embedded in other tools. You may share only exact,
+   unmodified copies, with citation.
+
+4. ANYTHING ELSE REQUIRES PERMISSION. Uses not permitted above require prior
+   written permission from the author. Contact: https://github.com/imurra
+
+PREVIOUS VERSIONS
+
+Versions published before October 11, 2026 displayed a CC BY-NC-SA notice.
+Copies obtained under that notice keep those terms. Everything distributed
+from this repository and website from October 11, 2026 onward, including the
+archived version 1 at /v1/, is licensed under CC BY-NC-ND 4.0 as above.
+
+DISCLAIMER
+
+This simulator is a teaching tool. It is not a clinical model and must not be
+used for diagnosis, treatment, or any clinical decision. It is provided "as
+is", without warranty of any kind, as set out in Section 5 of the license.

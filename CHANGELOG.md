@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.0.1 — October 11, 2026
+
+### Changed
+- **License tightened to CC BY-NC-ND 4.0** (citation required, non-commercial use only, no modified versions), replacing the earlier CC BY-NC-SA notice. Applies to everything distributed from this repository from this date, including the archived v1 at /v1/. See LICENSE.
+- Citation and license terms now shown prominently on the simulator page, in a license notice on the v1 page, in the README, and in every source file header.
+
+### Added
+- LICENSE file and CITATION.cff (enables GitHub's "Cite this repository" button).
+
 ## v2.0 — October 11, 2026
 
 A rewrite of the model so that every preset and every slider runs through one set of equations, sliders stop at physiologically impossible combinations, and every claim in the walkthrough text is checked by an automated test. Internally this was the "v5" model; publicly it is version 2.

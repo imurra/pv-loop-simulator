@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Ian V.J. Murray. Licensed under CC BY-NC-ND 4.0 (citation
+// required, non-commercial use only, no modified versions). See LICENSE.
 import React, { useState, useMemo, useCallback } from "react";
 import {
   V0, SLIDERS, SC, NORMAL, computeState, moveSlider, loopPoints, espvr, edpvr,
@@ -307,9 +309,20 @@ export default function PVLoop() {
           </div>
         )}
 
-        <div style={{ fontSize: 7, color: "#6E7681", textAlign: "center", marginTop: 8 }}>
-          Dr. Ian Murray · CC BY-NC-SA · Sagawa/Suga · CVPhysiology cf025/cf026 · v2.0 ·{" "}
-          <a href="./v1/" style={{ color: "#8B949E" }}>previous version</a>
+        <div data-testid="license" style={{ fontSize: 9, color: "#8B949E", lineHeight: 1.6, marginTop: 8, padding: "8px 10px", border: "1px solid #21262D", borderRadius: 4 }}>
+          <div style={{ color: "#C9D1D9", fontWeight: 700 }}>
+            © 2026 Ian V.J. Murray · Licensed{" "}
+            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer license" style={{ color: "#C9D1D9" }}>CC BY-NC-ND 4.0</a>
+          </div>
+          <div>Citation required · Non-commercial use only · No modified versions. Other uses need written permission.</div>
+          <div style={{ marginTop: 4 }}>
+            <span style={{ color: "#C9D1D9" }}>Cite as:</span> Murray IVJ. PV Loop Simulator (Version 2.0) [Interactive simulation]. 2026. Available at: https://imurra.github.io/pv-loop-simulator/
+          </div>
+          <div style={{ marginTop: 4, color: "#6E7681" }}>
+            Teaching tool only; not for clinical decisions · Model after Sagawa/Suga · CVPhysiology cf025/cf026 · v2.0 ·{" "}
+            <a href="https://github.com/imurra/pv-loop-simulator/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" style={{ color: "#8B949E" }}>full terms</a> ·{" "}
+            <a href="./v1/" style={{ color: "#8B949E" }}>previous version</a>
+          </div>
         </div>
       </div>
     </div>

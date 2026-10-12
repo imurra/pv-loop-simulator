@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Ian V.J. Murray. Licensed under CC BY-NC-ND 4.0 (citation
+// required, non-commercial use only, no modified versions). See LICENSE.
 // ═══════════════════════════════════════════════════════════════════
 // PRESSURE–VOLUME LOOP MODEL v5 — one set of equations for everything
 //
